@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "模块描述"
+    },
+    {
+      "name": "BoardAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "BoardAbility_label",
+      "value": "label"
+    }
+  ]
+}

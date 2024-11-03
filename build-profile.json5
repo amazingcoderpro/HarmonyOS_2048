@@ -36,6 +36,18 @@
           ]
         }
       ]
+    },
+    {
+      "name": "board",
+      "srcPath": "./features/board",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
     }
   ]
 }

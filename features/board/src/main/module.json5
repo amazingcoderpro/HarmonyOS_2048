@@ -1,0 +1,28 @@
+{
+  "module": {
+    "name": "board",
+    "type": "feature",
+    "description": "$string:module_desc",
+    "mainElement": "BoardAbility",
+    "deviceTypes": [
+      "phone",
+      "tablet",
+      "2in1"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    "abilities": [
+      {
+        "name": "BoardAbility",
+        "srcEntry": "./ets/boardability/BoardAbility.ets",
+        "description": "$string:BoardAbility_desc",
+        "icon": "$media:layered_image",
+        "label": "$string:BoardAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true
+      }
+    ]
+  }
+}

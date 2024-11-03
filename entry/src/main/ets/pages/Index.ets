@@ -1,57 +1,152 @@
-
 import prompt from '@system.prompt';
 
-@Entry
+PersistentStorage.persistProp("persistedData", new Map<string, number>([]));
+let storage = LocalStorage.GetShared()
+
+class MainGridController {
+  initNumberItems = () => {
+  }
+  numberItems: NumberItem[][] = [];
+  numbers: number[][]=[];
+}
+
+@Entry(storage)
 @Component
 struct Index {
-  @State message: string = 'Hello World';
   @State @Watch('onTotalScoreChanged') totalScore: number = 0;
+  displayRecordScore: number = 0;
   @State @Watch('OnGameOver') gameOver: boolean = false;
-  recordScore: number = 100;
-  isPromptOverRecord: boolean = false;
+  isFirstOverRecord: boolean = true;
+  @State soundOn: number = 1;
+  @LocalStorageLink('RecordScore') recordScore: number = 0;
 
-  onTotalScoreChanged(){
-    if(this.totalScore>this.recordScore){
-      if(!this.isPromptOverRecord) {
-        prompt.showToast({
-          message:"创纪录了, 加油"
-        })
-        this.isPromptOverRecord=true;
-      }
-      this.recordScore = this.totalScore;
-    }
+  private context = getContext(this) as Context;
+  private mainGridController = new MainGridController();
+
+  aboutToAppear(): void {
+    console.log('aboutToAppear read record score - ', this.recordScore.toString());
+    this.displayRecordScore = this.recordScore;
   }
 
-  OnGameOver(){
-    if(this.gameOver){
+  aboutToDisappear(): void {
+  }
+
+  onTotalScoreChanged() {
+    if (this.totalScore > this.recordScore) {
+      if (this.isFirstOverRecord) {
+        this.isFirstOverRecord = false;
+        prompt.showToast({ message: "创造新纪录了, 加油!" })
+      }
+
+      this.recordScore = this.totalScore;
+      this.context.eventHub.emit('UpdateRecordEvent', this.recordScore);
+    }
+    console.log('onTotalScoreChanged record score - ', this.recordScore.toString());
+  }
+
+  OnGameOver() {
+    if (this.gameOver) {
+
       prompt.showToast({
-        message:"游戏结束了"
+        message: "游戏结束了!"
       })
     }
   }
 
+  OnRestartGame() {
+    this.initGame();
+
+  }
+
+  initGame() {
+    this.gameOver = false;
+    this.totalScore = 0;
+    this.isFirstOverRecord = true;
+    this.displayRecordScore = this.recordScore;
+    this.mainGridController.initNumberItems();
+  }
+
   build() {
     RelativeContainer() {
-      Column({ space: 5 }) {
-        Text(this.totalScore.toString())
-          .id('HelloWorld')
-          .fontSize(50)
-          .fontWeight(FontWeight.Bold)
-          .alignRules({
-            center: { anchor: '__container__', align: VerticalAlign.Center },
-            middle: { anchor: '__container__', align: HorizontalAlign.Center }
-          });
 
-        MainGrid({totalScore: this.totalScore, gameOver: this.gameOver});
+      Column({ space: 5 }) {
+        Row() {
+          Column() {
+            Text('2048')
+              .fontSize(40)
+              .fontWeight(FontWeight.Bold)
+
+              .alignRules({
+                center: { anchor: '__container__', align: VerticalAlign.Center },
+                middle: { anchor: '__container__', align: HorizontalAlign.Center }
+              });
+            Button("重新开始")
+              .fontSize(12)
+              .onClick(() => {
+              this.OnRestartGame();
+            });
+          }.margin({ right: 20 })
+
+          Column() {
+            Text('分数')
+              .fontSize(16)
+              .fontColor(0xeee3d7)
+              .margin({ bottom: 5 })
+              .alignRules({
+                center: { anchor: '__container__', align: VerticalAlign.Center },
+                middle: { anchor: '__container__', align: HorizontalAlign.Center }
+              });
+            Text(this.totalScore.toString())
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(0xfefefe)
+              .alignRules({
+                center: { anchor: '__container__', align: VerticalAlign.Center },
+                middle: { anchor: '__container__', align: HorizontalAlign.Center }
+              });
+          }
+          .width('25%')
+          .height(60)
+          .backgroundColor(0xbbaea1)
+          .borderRadius(5)
+          .padding(5)
+          .margin({ right: 20 })
+
+          Column() {
+            Text('最高分')
+              .fontSize(16)
+              .fontColor(0xeee3d7)
+              .margin({ bottom: 5 })
+              .alignRules({
+                center: { anchor: '__container__', align: VerticalAlign.Center },
+                middle: { anchor: '__container__', align: HorizontalAlign.Center }
+              });
+            Text(this.displayRecordScore.toString())
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(0xfefefe)
+              .alignRules({
+                center: { anchor: '__container__', align: VerticalAlign.Center },
+                middle: { anchor: '__container__', align: HorizontalAlign.Center }
+              });
+          }
+          .width('25%')
+          .height(60)
+          .backgroundColor(0xbbaea1)
+          .borderRadius(5)
+          .padding(5)
+        }
+        .margin({ bottom: 30 })
+
+        MainGrid({ totalScore: this.totalScore, gameOver: this.gameOver, controller: this.mainGridController });
       }
       .width('100%')
       .margin({ top: 5 })
 
-
-
     }
     .height('100%')
     .width('100%')
+    .margin({ top: 20, bottom: 20 })
 
   }
 }
@@ -59,63 +154,120 @@ struct Index {
 class NumberItem {
   num: number = 0;
   numString: string = '';
-  numColor: number = 0xF9CF93;
-  bgColour: number = 0xF9CF93;
-  numSize: number = 16;
+  numColor: number = 0xfdfffe;
+  bgColour: number = 0x2d2736;
+  numSize: number = 20;
 
   constructor(num: number) {
     this.num = num;
-    this.numString = num>0 ? num.toString() : '';
+    this.numString = num > 0 ? num.toString() : '';
     switch (num) {
       case 0: {
         this.numColor = 0x786d63;
-        this.bgColour = 0xccc0b3;
-        this.numSize = 32;
+        this.bgColour = 0xcabeb2;
+        this.numSize = 40;
         break;
       }
       case 2: {
-        this.numColor = 0x786d63;
+        this.numColor = 0x736d61;
         this.bgColour = 0xefe4da;
-        this.numSize = 32;
+        this.numSize = 40;
         break;
       }
       case 4: {
-        this.numColor = 0x796e67;
-        this.bgColour = 0xeaddbe;
-        this.numSize = 32;
+        this.numColor = 0x776c62;
+        this.bgColour = 0xeaddc6;
+        this.numSize = 40;
         break;
       }
       case 8: {
         this.numColor = 0xfefdfb;
         this.bgColour = 0xf2b178;
-        this.numSize = 32;
+        this.numSize = 40;
         break;
       }
       case 16: {
         this.numColor = 0xfeffff;
         this.bgColour = 0xf6925d;
-        this.numSize = 32;
+        this.numSize = 36;
         break;
       }
       case 32: {
         this.numColor = 0xfdfdfb;
         this.bgColour = 0xf57758;
-        this.numSize = 32;
+        this.numSize = 36;
         break;
       }
       case 64: {
         this.numColor = 0xfdfffe;
         this.bgColour = 0xf2522d;
+        this.numSize = 36;
+        break;
+      }
+      case 128: {
+        this.numColor = 0xfefeff;
+        this.bgColour = 0xedce73;
         this.numSize = 32;
         break;
       }
+      case 256: {
+        this.numColor = 0xfeffff;
+        this.bgColour = 0xe5d153;
+        this.numSize = 32;
+        break;
+      }
+      case 512: {
+        this.numColor = 0xfffffe;
+        this.bgColour = 0xcfa30d;
+        this.numSize = 32;
+        break;
+      }
+      case 1024: {
+        this.numColor = 0xfbfcf0;
+        this.bgColour = 0xe7c451;
+        this.numSize = 28;
+        break;
+      }
+      case 2048: {
+        this.numColor = 0xfbfbea;
+        this.bgColour = 0xdf6c37;
+        this.numSize = 28;
+        break;
+      }
+      case 4096: {
+        this.numColor = 0xf5fbf6;
+        this.bgColour = 0xfc4b45;
+        this.numSize = 28;
+        break;
+      }
+      case 8192: {
+        this.numColor = 0xf5fbf6;
+        this.bgColour = 0x812f33;
+        this.numSize = 28;
+        break;
+      }
+      case 16384: {
+        this.numColor = 0xfdfffe;
+        this.bgColour = 0x705e78;
+        this.numSize = 24;
+        break;
+      }
+      case 32768: {
+        this.numColor = 0xfdfffe;
+        this.bgColour = 0xa5aaa3;
+        this.numSize = 24;
+        break;
+      }
+
     }
   }
-
 }
+
 @Preview
 @Component
 struct MainGrid {
+  private controller: MainGridController = new MainGridController();
+
   @Link totalScore: number;
   @Link gameOver: boolean;
   @State numberItems: NumberItem[][] = [];
@@ -126,23 +278,22 @@ struct MainGrid {
   initRow: number = 4;
   initCol: number = 4;
   numbers: number[][] = [
-    [0,2,0,16],
-    [0,4,0,0],
-    [0,0,4,0],
-    [0,0,8,0]
+    [0, 2, 0, 16],
+    [0, 4, 0, 0],
+    [0, 0, 4, 0],
+    [0, 0, 8, 0]
   ]
 
-
-  private initNumberItems(){
-    let randomPos: number = Math.floor(Math.random() * this.initRow*this.initCol);
+  private initNumberItems() {
+    let randomPos: number = Math.floor(Math.random() * this.initRow * this.initCol);
     // console.log(randomPos.toString())
     for (let i = 0; i < this.initRow; i++) {
       this.numbers[i] = [];
       for (let j = 0; j < this.initCol; j++) {
-        if (i*this.initRow+j == randomPos) {
+        if (i * this.initRow + j == randomPos) {
           this.numbers[i][j] = this.getRandomNumber();
-        }else {
-          this.numbers[i][j]=0;
+        } else {
+          this.numbers[i][j] = 0;
         }
       }
     }
@@ -182,8 +333,8 @@ struct MainGrid {
       }
     } else if (moveTo == 'right') {
       for (let i = 0; i < row; i++) {
-        let newPos: number = col-1;
-        for (let j = col-1; j >= 0; j--) {
+        let newPos: number = col - 1;
+        for (let j = col - 1; j >= 0; j--) {
           if (numbers[i][j] != 0) {
             newArray[i][newPos] = numbers[i][j];
             newPos--;
@@ -202,8 +353,8 @@ struct MainGrid {
       }
     } else if (moveTo == 'down') {
       for (let i = 0; i < col; i++) {
-        let newPos: number = row-1;
-        for (let j = row-1; j >= 0; j--) {
+        let newPos: number = row - 1;
+        for (let j = row - 1; j >= 0; j--) {
           if (numbers[j][i] != 0) {
             newArray[newPos][i] = numbers[j][i];
             newPos--;
@@ -215,17 +366,15 @@ struct MainGrid {
     return newArray;
   }
 
-
-
-  private merge2DArray(numbers: number[][], moveTo: string, row: number = 4, col: number = 4): MergeResult{
+  private merge2DArray(numbers: number[][], moveTo: string, row: number = 4, col: number = 4): MergeResult {
     let mergedArray = this.buildTwoDimensionalArray(row, col);
     let getScore: number = 0;
     if (moveTo == 'left') {
       for (let i = 0; i < row; i++) {
-        let newPos:number = 0;
+        let newPos: number = 0;
         for (let j = 0; j < col; j++) {
           if (numbers[i][j] != 0) {
-            if (j<col-1 && numbers[i][j] == numbers[i][j+1]) {
+            if (j < col - 1 && numbers[i][j] == numbers[i][j+1]) {
               mergedArray[i][newPos] = numbers[i][j] * 2;
               getScore += mergedArray[i][newPos];
               numbers[i][j+1] = 0;
@@ -238,11 +387,11 @@ struct MainGrid {
       }
     } else if (moveTo == 'right') {
       for (let i = 0; i < row; i++) {
-        let newPos:number = col-1;
+        let newPos: number = col - 1;
         for (let j = col - 1; j >= 0; j--) {
           if (numbers[i][j] != 0) {
-            if (j>=1 && numbers[i][j] == numbers[i][j-1]) {
-              mergedArray[i][newPos] = numbers[i][j]*2;
+            if (j >= 1 && numbers[i][j] == numbers[i][j-1]) {
+              mergedArray[i][newPos] = numbers[i][j] * 2;
               getScore += mergedArray[i][newPos];
               numbers[i][j-1] = 0;
             } else {
@@ -253,12 +402,12 @@ struct MainGrid {
         }
       }
     } else if (moveTo == 'up') {
-      for (let j=0; j < col; j++) {
-        let newPos:number = 0;
-        for (let i=0; i< row; i++) {
-          if (numbers[i][j] !=0 ) {
-            if (i<row-1 && numbers[i][j] == numbers[i+1][j]) {
-              mergedArray[newPos][j] = numbers[i][j] *2;
+      for (let j = 0; j < col; j++) {
+        let newPos: number = 0;
+        for (let i = 0; i < row; i++) {
+          if (numbers[i][j] != 0) {
+            if (i < row - 1 && numbers[i][j] == numbers[i+1][j]) {
+              mergedArray[newPos][j] = numbers[i][j] * 2;
               getScore += mergedArray[newPos][j];
               numbers[i+1][j] = 0;
             } else {
@@ -269,12 +418,12 @@ struct MainGrid {
         }
       }
     } else if (moveTo == 'down') {
-      for (let j=0; j < col; j++) {
-        let newPos:number = row-1;
-        for (let i=row-1; i>=0; i--) {
-          if (numbers[i][j] !=0 ) {
-            if (i>=1 && numbers[i][j] == numbers[i-1][j]) {
-              mergedArray[newPos][j] = numbers[i][j] *2;
+      for (let j = 0; j < col; j++) {
+        let newPos: number = row - 1;
+        for (let i = row - 1; i >= 0; i--) {
+          if (numbers[i][j] != 0) {
+            if (i >= 1 && numbers[i][j] == numbers[i-1][j]) {
+              mergedArray[newPos][j] = numbers[i][j] * 2;
               getScore += mergedArray[newPos][j];
               numbers[i-1][j] = 0;
             } else {
@@ -286,23 +435,27 @@ struct MainGrid {
       }
     }
 
-    return {mergedArray, getScore} as MergeResult;
+    return { mergedArray, getScore } as MergeResult;
   }
+
   private getRandomNumber(): number {
-    const numbers = [2,2,2,4];
+    const numbers = [2, 2, 2, 4];
+    // const numbers = [512,1024,2048,4096, 8192,16384];
     return numbers[Math.floor(Math.random() * numbers.length)];
   }
 
-  private addRandomNumber(numbers: number[][], row:number=4, col:number=4, randomCount:number=1) {
+  private addRandomNumber(numbers: number[][], row: number = 4, col: number = 4, randomCount: number = 1) {
     let emptyPosCount: number = this.calcEmptyPosCount(numbers, row, col);
-    let randomPos:number = Math.floor(Math.random() * emptyPosCount)
-    let randomNum:number = this.getRandomNumber();
+    let randomPos: number = Math.floor(Math.random() * emptyPosCount)
+    let randomNum: number = this.getRandomNumber();
 
     let emptyStep = 0;
-    let doneFlag:boolean = false;
-    for(let i=0; i<row; i++) {
-      if(doneFlag) break;
-      for (let j=0; j<col; j++) {
+    let doneFlag: boolean = false;
+    for (let i = 0; i < row; i++) {
+      if (doneFlag) {
+        break;
+      }
+      for (let j = 0; j < col; j++) {
         if (numbers[i][j] == 0) {
           if (emptyStep == randomPos) {
             numbers[i][j] = randomNum;
@@ -314,13 +467,14 @@ struct MainGrid {
 
       }
     }
-    console.info('in addRandomNumber: randomPos=', randomPos, ', randomNum=', randomNum, 'new numbers=', JSON.stringify(numbers));
+    // console.info('in addRandomNumber: randomPos=', randomPos, ', randomNum=', randomNum, 'new numbers=', JSON.stringify(numbers));
     return numbers;
   }
-  private calcEmptyPosCount(numbers:number[][], row: number=4, col: number=4) {
+
+  private calcEmptyPosCount(numbers: number[][], row: number = 4, col: number = 4) {
     let emptyPosCount: number = 0;
-    for(let i=0; i<row; i++) {
-      for (let j=0; j<col; j++) {
+    for (let i = 0; i < row; i++) {
+      for (let j = 0; j < col; j++) {
         if (numbers[i][j] == 0) {
           emptyPosCount++;
         }
@@ -329,32 +483,31 @@ struct MainGrid {
     return emptyPosCount;
   }
 
-  private isGameOver(numbers:number[][], row: number=4, col: number=4) {
-    let emptyPosCount:number = 0;
+  private isGameOver(numbers: number[][], row: number = 4, col: number = 4) {
+    let emptyPosCount: number = 0;
     for (const moveTo of ['left', 'right', 'up', 'down']) {
 
       let result = this.merge2DArray(this.eraseZeroOf2DArray(numbers, moveTo, row, col), moveTo, row, col);
       emptyPosCount += this.calcEmptyPosCount(result.mergedArray);
-      if (emptyPosCount>0) {
+      if (emptyPosCount > 0) {
         return false;
       }
     }
-
     return true;
   }
-  private updateNumberItems(moveTo: string, row: number = 4, col: number = 4){
-    console.info('updateNumberItems before process, numbers=', JSON.stringify(this.numbers));
+
+  private updateNumberItems(moveTo: string, row: number = 4, col: number = 4) {
+    // console.info('updateNumberItems before process, numbers=', JSON.stringify(this.numbers));
     let newArrayAfterEraseZero: number[][] = this.eraseZeroOf2DArray(this.numbers, moveTo, row, col);
-    console.info('updateNumberItems after erase zero, numbers=', JSON.stringify(newArrayAfterEraseZero));
+    // console.info('updateNumberItems after erase zero, numbers=', JSON.stringify(newArrayAfterEraseZero));
     let result = this.merge2DArray(newArrayAfterEraseZero, moveTo, row, col);
 
-    console.info('updateNumberItems after merge, numbers=', JSON.stringify(result.mergedArray));
+    // console.info('updateNumberItems after merge, numbers=', JSON.stringify(result.mergedArray));
     // 操作(消0+同数合并)之后数组没有任何变化不用增加随机数，也不用更新，此时如果没有空格，这游戏结束
     if (JSON.stringify(this.numbers) == JSON.stringify(result.mergedArray)) {
       if (this.isGameOver(result.mergedArray, row, col)) {
         this.gameOver = true;
       }
-
       return;
     }
 
@@ -371,91 +524,99 @@ struct MainGrid {
     this.numbers = newArrayAfterRandom;
     this.numberItems = newNumberItems;
   }
+
   aboutToAppear(): void {
+    this.controller.initNumberItems = this.initNumberItems;
+    this.controller.numberItems = this.numberItems;
+    this.controller.numbers = this.numbers;
     this.initNumberItems();
   }
 
   build() {
-      Grid() {
-        ForEach(this.numberItems, (row: NumberItem[]) => {
-          ForEach(row, (numberItem: NumberItem) => {
-            GridItem() {
-              Text(numberItem.numString)
-                .fontSize(numberItem.numSize)
-                .fontColor(numberItem.numColor)
-                .backgroundColor(numberItem.bgColour)
-                .textAlign(TextAlign.Center)
-                .fontWeight(700)
-                .fontFamily('HarmonyHeiTi-Bold')
-                .width('100%')
-                .height('100%')
-            }
-            // GridItem() {
-            //   Text('')
-            //     .fontSize(32)
-            //     .fontColor(0x786d63)
-            //     .backgroundColor(0xefe4da)
-            //     .textAlign(TextAlign.Center)
-            //     .width('100%')
-            //     .height('100%')
-            //     .fontFamily('HarmonyHeiTi-Bold')
-            //     .fontWeight(700)
-            // }
-          })
+    Grid() {
+      ForEach(this.numberItems, (row: NumberItem[]) => {
+        ForEach(row, (numberItem: NumberItem) => {
+          GridItem() {
+            Text(numberItem.numString)
+              .fontSize(numberItem.numSize)
+              .fontColor(numberItem.numColor)
+              .backgroundColor(numberItem.bgColour)
+              .textAlign(TextAlign.Center)
+              .fontWeight(FontWeight.Bold)
+              .fontFamily('HarmonyHeiTi-Bold')
+              .width('100%')
+              .height('100%')
+              .borderRadius(5)
+          }
+
+          // GridItem() {
+          //   Text('')
+          //     .fontSize(32)
+          //     .fontColor(0x786d63)
+          //     .backgroundColor(0xefe4da)
+          //     .textAlign(TextAlign.Center)
+          //     .width('100%')
+          //     .height('100%')
+          //     .fontFamily('HarmonyHeiTi-Bold')
+          //     .fontWeight(700)
+          // }
         })
-      }
-      .columnsTemplate('1fr 1fr 1fr 1fr')
-      .rowsTemplate('1fr 1fr 1fr 1fr')
-      .columnsGap(10)
-      .rowsGap(10)
-      .width('90%')
-      .backgroundColor(0xbbaea2)
-      .height(300)
-      .onTouch((e) => {
-        if (e.type === TouchType.Down && e.touches.length > 0) { // 触摸开始，记录初始位置
-          this.screenStartX = e.touches[0].screenX;
-          this.screenStartY = e.touches[0].screenY;
-        } else if (e.type === TouchType.Up && e.changedTouches.length > 0) { // 当手指抬起时，更新最后的位置
-          this.lastScreenX = e.changedTouches[0].screenX;
-          this.lastScreenY = e.changedTouches[0].screenY;
-        } else if (e.type === TouchType.Move && e.changedTouches.length > 0) { // 当手指移动时，更新最后的位置
-          this.lastScreenX = e.changedTouches[0].screenX;
-          this.lastScreenY = e.changedTouches[0].screenY;
-        }
       })
-      .gesture(
-        SwipeGesture({ direction: SwipeDirection.All })
-          .onAction((event: GestureEvent) => {
-            const swipeX = this.lastScreenX - this.screenStartX;
-            const swipeY = this.lastScreenY - this.screenStartY;
-            // 判断滑动方向
-            let directionText = '';
-            if (Math.abs(swipeX) > Math.abs(swipeY)) {
-              if (swipeX > 0) {
-                directionText = 'right'; // 向右滑动
-              } else {
-                directionText = 'left'; // 向左滑动
-              }
+    }
+    .columnsTemplate('1fr 1fr 1fr 1fr')
+    .rowsTemplate('1fr 1fr 1fr 1fr')
+    .columnsGap(10)
+    .rowsGap(10)
+    .width('90%')
+    .padding(10)
+    .backgroundColor(0xb8aca0)
+    .height(350)
+    .borderRadius(5)
+    .onTouch((e) => {
+      if (e.type === TouchType.Down && e.touches.length > 0) { // 触摸开始，记录初始位置
+        this.screenStartX = e.touches[0].screenX;
+        this.screenStartY = e.touches[0].screenY;
+      } else if (e.type === TouchType.Up && e.changedTouches.length > 0) { // 当手指抬起时，更新最后的位置
+        this.lastScreenX = e.changedTouches[0].screenX;
+        this.lastScreenY = e.changedTouches[0].screenY;
+      } else if (e.type === TouchType.Move && e.changedTouches.length > 0) { // 当手指移动时，更新最后的位置
+        this.lastScreenX = e.changedTouches[0].screenX;
+        this.lastScreenY = e.changedTouches[0].screenY;
+      }
+    })
+    .gesture(
+      SwipeGesture({ direction: SwipeDirection.All })
+        .onAction((event: GestureEvent) => {
+          const swipeX = this.lastScreenX - this.screenStartX;
+          const swipeY = this.lastScreenY - this.screenStartY;
+          // 判断滑动方向
+          let directionText = '';
+          if (Math.abs(swipeX) > Math.abs(swipeY)) {
+            if (swipeX > 0) {
+              directionText = 'right'; // 向右滑动
             } else {
-              if (swipeY > 0) {
-                directionText = 'down'; // 向下滑动
-              } else {
-                directionText = 'up'; // 向上滑动
-              }
+              directionText = 'left'; // 向左滑动
             }
+          } else {
+            if (swipeY > 0) {
+              directionText = 'down'; // 向下滑动
+            } else {
+              directionText = 'up'; // 向上滑动
+            }
+          }
 
-            console.info('====滑动方向:', directionText);
-            this.updateNumberItems(directionText)
-            // console.info('====起点x:', this.screenStartX);
-            // console.info('====起点y:', this.screenStartY);
-            // console.info('====终点x:', this.lastScreenX);
-            // console.info('====终点y:', this.lastScreenY);
+          // console.info('====滑动方向:', directionText);
+          this.updateNumberItems(directionText)
+          // console.info('====起点x:', this.screenStartX);
+          // console.info('====起点y:', this.screenStartY);
+          // console.info('====终点x:', this.lastScreenX);
+          // console.info('====终点y:', this.lastScreenY);
 
-            // 清除开始位置记录，准备下一次滑动判断
-            this.screenStartX = 0;
-            this.screenStartY = 0;
-          })
-      )
+          // 清除开始位置记录，准备下一次滑动判断
+          this.screenStartX = 0;
+          this.screenStartY = 0;
+        })
+    )
   }
 }
 
