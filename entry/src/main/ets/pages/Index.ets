@@ -3,29 +3,75 @@ import prompt from '@system.prompt';
 PersistentStorage.persistProp("persistedData", new Map<string, number>([]));
 let storage = LocalStorage.GetShared()
 
-class MainGridController {
-  initNumberItems = () => {
-  }
-  numberItems: NumberItem[][] = [];
-  numbers: number[][]=[];
+// class MainGridController {
+//   initNumberItems = () => {
+//   }
+//   numberItems: NumberItem[][] = [];
+//   numbers: number[][]=[];
+// }
+function getRandomNumber(): number {
+  const numbers = [2, 2, 2, 4];
+  // const numbers = [512,1024,2048,4096, 8192,16384];
+  return numbers[Math.floor(Math.random() * numbers.length)];
 }
+
+function buildTwoDimensionalArray(row: number, col: number): number[][] {
+  let result: number[][] = [];
+  for (let i = 0; i < row; i++) {
+    result[i] = [];
+    for (let j = 0; j < col; j++) {
+      result[i][j] = 0;
+    }
+  }
+  return result;
+}
+
 
 @Entry(storage)
 @Component
 struct Index {
   @State @Watch('onTotalScoreChanged') totalScore: number = 0;
-  displayRecordScore: number = 0;
   @State @Watch('OnGameOver') gameOver: boolean = false;
-  isFirstOverRecord: boolean = true;
+  @State numberItems: NumberItem[][] = [];
   @State soundOn: number = 1;
   @LocalStorageLink('RecordScore') recordScore: number = 0;
+  @State numbers: number[][]=[]
+  @State initRow: number = 4;
+  @State initCol: number = 4;
+  isFirstOverRecord: boolean = true;
+  @State displayRecordScore: number = 0;
 
   private context = getContext(this) as Context;
-  private mainGridController = new MainGridController();
+
+  private initNumberItems() {
+    let tempNumbers = buildTwoDimensionalArray(this.initRow, this.initCol);
+    let randomPos: number = Math.floor(Math.random() * this.initRow * this.initCol);
+
+    for (let i = 0; i < this.initRow; i++) {
+      tempNumbers[i] = [];
+      for (let j = 0; j < this.initCol; j++) {
+        if (i * this.initRow + j == randomPos) {
+          tempNumbers[i][j] = getRandomNumber();
+        } else {
+          tempNumbers[i][j] = 0;
+        }
+      }
+    }
+
+    let tempNumbersItems: NumberItem[][] = [];
+    for (let i = 0; i < this.initRow; i++) {
+      tempNumbersItems[i] = [];
+      for (let j = 0; j < this.initCol; j++) {
+        tempNumbersItems[i][j] = new NumberItem(tempNumbers[i][j]);
+      }
+    }
+
+    this.numbers = tempNumbers;
+    this.numberItems = tempNumbersItems;
+  }
 
   aboutToAppear(): void {
-    console.log('aboutToAppear read record score - ', this.recordScore.toString());
-    this.displayRecordScore = this.recordScore;
+    this.initGame();
   }
 
   aboutToDisappear(): void {
@@ -46,7 +92,6 @@ struct Index {
 
   OnGameOver() {
     if (this.gameOver) {
-
       prompt.showToast({
         message: "游戏结束了!"
       })
@@ -55,15 +100,15 @@ struct Index {
 
   OnRestartGame() {
     this.initGame();
-
   }
 
   initGame() {
+    console.log('-------initGame------');
     this.gameOver = false;
     this.totalScore = 0;
     this.isFirstOverRecord = true;
     this.displayRecordScore = this.recordScore;
-    this.mainGridController.initNumberItems();
+    this.initNumberItems();
   }
 
   build() {
@@ -138,7 +183,7 @@ struct Index {
         }
         .margin({ bottom: 30 })
 
-        MainGrid({ totalScore: this.totalScore, gameOver: this.gameOver, controller: this.mainGridController });
+        MainGrid({ totalScore: this.totalScore, gameOver: this.gameOver, numbers: this.numbers, numberItems: this.numberItems, initRow: this.initRow, initCol: this.initCol} );
       }
       .width('100%')
       .margin({ top: 5 })
@@ -266,61 +311,22 @@ class NumberItem {
 @Preview
 @Component
 struct MainGrid {
-  private controller: MainGridController = new MainGridController();
-
   @Link totalScore: number;
   @Link gameOver: boolean;
-  @State numberItems: NumberItem[][] = [];
+  @Link numberItems: NumberItem[][];
+  @Link numbers: number[][];
+  @Link initRow: number;
+  @Link initCol: number;
   screenStartX: number = 0
   screenStartY: number = 0
   lastScreenX: number = 0
   lastScreenY: number = 0
-  initRow: number = 4;
-  initCol: number = 4;
-  numbers: number[][] = [
-    [0, 2, 0, 16],
-    [0, 4, 0, 0],
-    [0, 0, 4, 0],
-    [0, 0, 8, 0]
-  ]
 
-  private initNumberItems() {
-    let randomPos: number = Math.floor(Math.random() * this.initRow * this.initCol);
-    // console.log(randomPos.toString())
-    for (let i = 0; i < this.initRow; i++) {
-      this.numbers[i] = [];
-      for (let j = 0; j < this.initCol; j++) {
-        if (i * this.initRow + j == randomPos) {
-          this.numbers[i][j] = this.getRandomNumber();
-        } else {
-          this.numbers[i][j] = 0;
-        }
-      }
-    }
-    // console.log(JSON.stringify(this.numbers)); // 将二维数组转换为字符串
 
-    this.numberItems = [];
-    for (let i = 0; i < 4; i++) {
-      this.numberItems[i] = [];
-      for (let j = 0; j < 4; j++) {
-        this.numberItems[i][j] = new NumberItem(this.numbers[i][j]);
-      }
-    }
-  }
 
-  private buildTwoDimensionalArray(row: number, col: number): number[][] {
-    let result: number[][] = [];
-    for (let i = 0; i < row; i++) {
-      result[i] = [];
-      for (let j = 0; j < col; j++) {
-        result[i][j] = 0;
-      }
-    }
-    return result;
-  }
 
   private eraseZeroOf2DArray(numbers: number[][], moveTo: string, row: number = 4, col: number = 4): number[][] {
-    let newArray = this.buildTwoDimensionalArray(row, col);
+    let newArray = buildTwoDimensionalArray(row, col);
     if (moveTo == 'left') {
       for (let i = 0; i < row; i++) {
         let newPos: number = 0;
@@ -367,7 +373,7 @@ struct MainGrid {
   }
 
   private merge2DArray(numbers: number[][], moveTo: string, row: number = 4, col: number = 4): MergeResult {
-    let mergedArray = this.buildTwoDimensionalArray(row, col);
+    let mergedArray = buildTwoDimensionalArray(row, col);
     let getScore: number = 0;
     if (moveTo == 'left') {
       for (let i = 0; i < row; i++) {
@@ -438,16 +444,10 @@ struct MainGrid {
     return { mergedArray, getScore } as MergeResult;
   }
 
-  private getRandomNumber(): number {
-    const numbers = [2, 2, 2, 4];
-    // const numbers = [512,1024,2048,4096, 8192,16384];
-    return numbers[Math.floor(Math.random() * numbers.length)];
-  }
-
   private addRandomNumber(numbers: number[][], row: number = 4, col: number = 4, randomCount: number = 1) {
     let emptyPosCount: number = this.calcEmptyPosCount(numbers, row, col);
     let randomPos: number = Math.floor(Math.random() * emptyPosCount)
-    let randomNum: number = this.getRandomNumber();
+    let randomNum: number = getRandomNumber();
 
     let emptyStep = 0;
     let doneFlag: boolean = false;
@@ -526,10 +526,7 @@ struct MainGrid {
   }
 
   aboutToAppear(): void {
-    this.controller.initNumberItems = this.initNumberItems;
-    this.controller.numberItems = this.numberItems;
-    this.controller.numbers = this.numbers;
-    this.initNumberItems();
+
   }
 
   build() {
