@@ -1,4 +1,8 @@
 import prompt from '@system.prompt';
+import { advertising, AutoAdComponent, identifier } from '@kit.AdsKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+
 
 PersistentStorage.persistProp("persistedData", new Map<string, number>([]));
 let storage = LocalStorage.GetShared()
@@ -40,8 +44,66 @@ struct Index {
   @State initCol: number = 4;
   isFirstOverRecord: boolean = true;
   @State displayRecordScore: number = 0;
-
   private context = getContext(this) as Context;
+
+  //广告相关的----begin
+  @State adParam: advertising.AdRequestParams = {
+    // 广告类型：Banner广告
+    adType: 8,
+    // 'testw6vs28auh3'为测试专用的广告位ID，App正式发布时需要改为正式的广告位ID
+    adId: 'testw6vs28auh3',
+    // 广告位宽
+    adWidth: 360,
+    // 广告位高
+    adHeight: 57,
+    // 开放匿名设备标识符
+    oaid: ''
+  };
+  private adOptions: advertising.AdOptions = {
+    // 是否允许流量下载0：不允许，1：允许，不设置以广告主设置为准
+    allowMobileTraffic: 0,
+    // 是否希望根据 COPPA 的规定将您的内容视为面向儿童的内容: -1默认值，不确定 0不希望 1希望
+    tagForChildProtection: -1,
+    // 是否希望按适合未达到法定承诺年龄的欧洲经济区 (EEA) 用户的方式处理该广告请求： -1默认值，不确定 0不希望 1希望
+    tagForUnderAgeOfPromise: -1,
+    // 设置广告内容分级上限: W: 3+,所有受众 PI: 7+,家长指导 J:12+,青少年 A: 16+/18+，成人受众
+    adContentClassification: 'A'
+  };
+  private displayOptions: advertising.AdDisplayOptions = {
+    // 广告轮播的时间间隔，单位ms，取值范围[30000, 120000]
+    refreshTime: 30000
+  }
+  private ratio: number = 1;
+  private adWidth: number = -1;
+  private adHeight: number = -1;
+  @State visibilityState: Visibility = Visibility.Visible;
+
+  initBannerAds() {
+    try {
+      // 使用Promise回调方式获取OAID
+      identifier.getOAID().then((data) => {
+        this.adParam.oaid = data;
+        hilog.info(0x0000, 'testTag', '%{public}s', `Succeeded in getting adsIdentifierInfo by promise`);
+      }).catch((error: BusinessError) => {
+        hilog.error(0x0000, 'testTag', '%{public}s',
+          `Failed to get adsIdentifierInfo, code: ${error.code}, message: ${error.message}`);
+      })
+    } catch (error) {
+      hilog.error(0x0000, 'testTag', '%{public}s', `Catch err, code: ${error.code}, message: ${error.message}`);
+    }
+
+    if (this.adParam?.adWidth && typeof (this.adParam?.adWidth) === 'number' && this.adParam?.adWidth > 0) {
+      this.adWidth = this.adParam?.adWidth;
+    }
+    if (this.adParam?.adHeight && typeof (this.adParam?.adHeight) === 'number' && this.adParam?.adHeight > 0) {
+      this.adHeight = this.adParam?.adHeight;
+    }
+    if (this.adWidth > 0 && this.adHeight > 0) {
+      this.ratio = this.adWidth / this.adHeight;
+    }
+  }
+
+  //广告相关的----end
 
   private initNumberItems() {
     let tempNumbers = buildTwoDimensionalArray(this.initRow, this.initCol);
@@ -70,9 +132,16 @@ struct Index {
     this.numberItems = tempNumbersItems;
   }
 
+
+
   aboutToAppear(): void {
     this.initGame();
+
+    // 获取广告位ID
+    // this.initBannerAds();
   }
+
+
 
   aboutToDisappear(): void {
   }
@@ -188,12 +257,59 @@ struct Index {
       .width('100%')
       .margin({ top: 5 })
 
+      // 广告
+      // if (this.adParam.oaid) {
+      //   Stack({ alignContent: Alignment.Bottom }) {
+      //     this.buildBannerView()
+      //   }
+      // }
+
     }
     .height('100%')
     .width('100%')
     .margin({ top: 20, bottom: 20 })
 
   }
+
+
+  @Builder
+  buildBannerView() {
+    Row() {
+      AutoAdComponent({
+        adParam: this.adParam,
+        adOptions: this.adOptions,
+        displayOptions: this.displayOptions,
+        interactionListener: {
+          onStatusChanged: (status: string, ad: advertising.Advertisement, data: string) => {
+            hilog.info(0x0000, 'testTag', '%{public}s', `status is ${status}`);
+            switch (status) {
+              case AdStatus.AD_OPEN:
+                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdOpen');
+                break;
+              case AdStatus.AD_CLICKED:
+                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClick');
+                break;
+              case AdStatus.AD_CLOSED:
+                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClose');
+                this.visibilityState = Visibility.None;
+                break;
+              case AdStatus.AD_LOAD:
+                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdLoad');
+                break;
+              case AdStatus.AD_FAIL:
+                hilog.error(0x0000, 'testTag', '%{public}s', 'Status is onAdFail');
+                this.visibilityState = Visibility.None;
+                break;
+            }
+          }
+        }
+      })
+    }
+    .width('100%')
+    .aspectRatio(this.ratio)
+    .visibility(this.visibilityState)
+  }
+
 }
 
 class NumberItem {
@@ -321,9 +437,6 @@ struct MainGrid {
   screenStartY: number = 0
   lastScreenX: number = 0
   lastScreenY: number = 0
-
-
-
 
   private eraseZeroOf2DArray(numbers: number[][], moveTo: string, row: number = 4, col: number = 4): number[][] {
     let newArray = buildTwoDimensionalArray(row, col);
@@ -623,4 +736,16 @@ interface MergeResult {
 }
 
 
+
+
+enum AdStatus {
+  AD_LOAD = 'onAdLoad',
+  AD_FAIL = 'onAdFail',
+  AD_OPEN = 'onAdOpen',
+  AD_CLICKED = 'onAdClick',
+  AD_CLOSED = 'onAdClose',
+  AD_REWARDED = 'onAdReward',
+  AD_VIDEO_START = 'onVideoPlayBegin',
+  AD_COMPLETED = 'onVideoPlayEnd'
+}
 
