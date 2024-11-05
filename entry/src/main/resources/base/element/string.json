@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "2048数字游戏"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "2048益智数字游戏"
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "2048"
     }
   ]
 }

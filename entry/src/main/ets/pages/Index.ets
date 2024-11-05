@@ -148,7 +148,7 @@ struct Index {
 
   onTotalScoreChanged() {
     if (this.totalScore > this.recordScore) {
-      if (this.isFirstOverRecord) {
+      if (this.isFirstOverRecord && this.displayRecordScore>0) {
         this.isFirstOverRecord = false;
         prompt.showToast({ message: "创造新纪录了, 加油!" })
       }
