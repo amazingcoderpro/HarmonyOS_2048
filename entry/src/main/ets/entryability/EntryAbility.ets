@@ -22,7 +22,9 @@ interface StorageOptions {
 
 export default class EntryAbility extends UIAbility {
   sharedPara: Record<string, number> = {
-    'RecordScore': 0
+    'RecordScore': 0,
+    'RecordScoreHard': 0,
+    'RecordScoreSpeed': 0
   };
   storage: LocalStorage = new LocalStorage(this.sharedPara);
 
@@ -71,6 +73,8 @@ export default class EntryAbility extends UIAbility {
     // 加载得分记录
     this.getValueFromPreferences("RecordScore", "", "sync");
     // 加载其他
+    this.getValueFromPreferences("RecordScoreHard", "", "sync");
+    this.getValueFromPreferences("RecordScoreSpeed", "", "sync");
   }
 
   saveAppData() {
@@ -90,17 +94,32 @@ export default class EntryAbility extends UIAbility {
   saveRecordScore() {
     // 保存记录
     let recordScore: number | undefined = this.storage.get<number>("RecordScore");
+    let recordScoreHard: number | undefined = this.storage.get<number>("RecordScoreHard");
+    let recordScoreSpeed: number | undefined = this.storage.get<number>("RecordScoreSpeed");
     let score: number = recordScore ?? 0;
+    let scoreHard: number = recordScoreHard ?? 0;
+    let scoreSpeed: number = recordScoreSpeed ?? 0;
     this.saveValueToPreferences("RecordScore", score.toString())
-    console.log('updateRecordScore is called, record=', score.toString());
+    this.saveValueToPreferences("RecordScoreHard", scoreHard.toString())
+    this.saveValueToPreferences("RecordScoreSpeed", scoreSpeed.toString())
+    console.log('updateRecordScore is called, recordScore=', score.toString());
+    console.log('updateRecordScore is called, recordScoreHard=', scoreHard.toString());
+    console.log('updateRecordScore is called, recordScoreSpeed=', scoreSpeed.toString());
   }
 
-  updateRecordScore(score: number) {
-    let promise = dataPreferences?.put('RecordScore', score.toString());
+  updateRecordScore(score: number, gameLevel: number=0) {
+    let recordName: string = "RecordScore"
+    if (gameLevel == 1) {
+      recordName = "RecordScoreHard";
+    } else if (gameLevel == 2) {
+      recordName = "RecordScoreSpeed";
+    }
+
+    let promise = dataPreferences?.put(recordName, score.toString());
     promise?.then(() => {
       let promiseFlush = dataPreferences?.flush();
       promiseFlush?.then(() => {
-        console.info(`updateRecordScore Succeeded in flush value of RecordScore`, `= `, score.toString());
+        console.info(`updateRecordScore Succeeded in flush value of RecordScore=`, score.toString(), `level=`, gameLevel.toString());
       }).catch((err: BusinessError) => {
         console.error(`Failed to flush. code: ${err.code}, message: ${err.message}`);
       })
@@ -165,9 +184,9 @@ export default class EntryAbility extends UIAbility {
     promise?.then((data: lang.ISendable) => {
       let dataStr = data as string;
       if (dataStr) {
-        this.storage.set("RecordScore", parseInt(dataStr));
+        this.storage.set(key, parseInt(dataStr));
       } else {
-        this.storage.set("RecordScore", 0);
+        this.storage.set(key, 0);
       }
       console.info(`Succeeded in getting value of `, key, `- Data: ${dataStr}`);
     }).catch((err: BusinessError) => {
@@ -175,3 +194,4 @@ export default class EntryAbility extends UIAbility {
     })
   }
 }
+

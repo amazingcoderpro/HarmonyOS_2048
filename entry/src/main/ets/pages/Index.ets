@@ -1,18 +1,12 @@
 import prompt from '@system.prompt';
-import { advertising, AutoAdComponent, identifier } from '@kit.AdsKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import { BusinessError } from '@kit.BasicServicesKit';
-
+// import { advertising, AutoAdComponent, identifier } from '@kit.AdsKit';
+// import { hilog } from '@kit.PerformanceAnalysisKit';
+import { AlertDialog } from '@kit.ArkUI'
 
 PersistentStorage.persistProp("persistedData", new Map<string, number>([]));
 let storage = LocalStorage.GetShared()
 
-// class MainGridController {
-//   initNumberItems = () => {
-//   }
-//   numberItems: NumberItem[][] = [];
-//   numbers: number[][]=[];
-// }
+
 function getRandomNumber(): number {
   const numbers = [2, 2, 2, 4];
   // const numbers = [512,1024,2048,4096, 8192,16384];
@@ -35,10 +29,12 @@ function buildTwoDimensionalArray(row: number, col: number): number[][] {
 @Component
 struct Index {
   @State @Watch('onTotalScoreChanged') totalScore: number = 0;
-  @State @Watch('OnGameOver') gameOver: boolean = false;
+  @State @Watch('onGameOverChanged') isGameOver: boolean = false;
   @State numberItems: NumberItem[][] = [];
   @State soundOn: number = 1;
   @LocalStorageLink('RecordScore') recordScore: number = 0;
+  @LocalStorageLink('RecordScoreHard') recordScoreHard: number = 0;
+  @LocalStorageLink('RecordScoreSpeed') recordScoreSpeed: number = 0;
   @State numbers: number[][]=[]
   @State initRow: number = 4;
   @State initCol: number = 4;
@@ -46,73 +42,176 @@ struct Index {
   @State displayRecordScore: number = 0;
   private context = getContext(this) as Context;
 
+
   //广告相关的----begin
-  @State adParam: advertising.AdRequestParams = {
-    // 广告类型：Banner广告
-    adType: 8,
-    // 'testw6vs28auh3'为测试专用的广告位ID，App正式发布时需要改为正式的广告位ID
-    adId: 'testw6vs28auh3',
-    // 广告位宽
-    adWidth: 360,
-    // 广告位高
-    adHeight: 57,
-    // 开放匿名设备标识符
-    oaid: ''
-  };
-  private adOptions: advertising.AdOptions = {
-    // 是否允许流量下载0：不允许，1：允许，不设置以广告主设置为准
-    allowMobileTraffic: 0,
-    // 是否希望根据 COPPA 的规定将您的内容视为面向儿童的内容: -1默认值，不确定 0不希望 1希望
-    tagForChildProtection: -1,
-    // 是否希望按适合未达到法定承诺年龄的欧洲经济区 (EEA) 用户的方式处理该广告请求： -1默认值，不确定 0不希望 1希望
-    tagForUnderAgeOfPromise: -1,
-    // 设置广告内容分级上限: W: 3+,所有受众 PI: 7+,家长指导 J:12+,青少年 A: 16+/18+，成人受众
-    adContentClassification: 'A'
-  };
-  private displayOptions: advertising.AdDisplayOptions = {
-    // 广告轮播的时间间隔，单位ms，取值范围[30000, 120000]
-    refreshTime: 30000
-  }
-  private ratio: number = 1;
-  private adWidth: number = -1;
-  private adHeight: number = -1;
-  @State visibilityState: Visibility = Visibility.Visible;
+  // @State adParam: advertising.AdRequestParams = {
+  //   // 广告类型：Banner广告
+  //   adType: 8,
+  //   // 'testw6vs28auh3'为测试专用的广告位ID，App正式发布时需要改为正式的广告位ID
+  //   adId: 'testw6vs28auh3',
+  //   // 广告位宽
+  //   adWidth: 360,
+  //   // 广告位高
+  //   adHeight: 57,
+  //   // 开放匿名设备标识符
+  //   oaid: ''
+  // };
+  // private adOptions: advertising.AdOptions = {
+  //   // 是否允许流量下载0：不允许，1：允许，不设置以广告主设置为准
+  //   allowMobileTraffic: 0,
+  //   // 是否希望根据 COPPA 的规定将您的内容视为面向儿童的内容: -1默认值，不确定 0不希望 1希望
+  //   tagForChildProtection: -1,
+  //   // 是否希望按适合未达到法定承诺年龄的欧洲经济区 (EEA) 用户的方式处理该广告请求： -1默认值，不确定 0不希望 1希望
+  //   tagForUnderAgeOfPromise: -1,
+  //   // 设置广告内容分级上限: W: 3+,所有受众 PI: 7+,家长指导 J:12+,青少年 A: 16+/18+，成人受众
+  //   adContentClassification: 'A'
+  // };
+  // private displayOptions: advertising.AdDisplayOptions = {
+  //   // 广告轮播的时间间隔，单位ms，取值范围[30000, 120000]
+  //   refreshTime: 30000
+  // }
+  // private ratio: number = 1;
+  // private adWidth: number = -1;
+  // private adHeight: number = -1;
 
-  initBannerAds() {
-    try {
-      // 使用Promise回调方式获取OAID
-      identifier.getOAID().then((data) => {
-        this.adParam.oaid = data;
-        hilog.info(0x0000, 'testTag', '%{public}s', `Succeeded in getting adsIdentifierInfo by promise`);
-      }).catch((error: BusinessError) => {
-        hilog.error(0x0000, 'testTag', '%{public}s',
-          `Failed to get adsIdentifierInfo, code: ${error.code}, message: ${error.message}`);
-      })
-    } catch (error) {
-      hilog.error(0x0000, 'testTag', '%{public}s', `Catch err, code: ${error.code}, message: ${error.message}`);
-    }
 
-    if (this.adParam?.adWidth && typeof (this.adParam?.adWidth) === 'number' && this.adParam?.adWidth > 0) {
-      this.adWidth = this.adParam?.adWidth;
-    }
-    if (this.adParam?.adHeight && typeof (this.adParam?.adHeight) === 'number' && this.adParam?.adHeight > 0) {
-      this.adHeight = this.adParam?.adHeight;
-    }
-    if (this.adWidth > 0 && this.adHeight > 0) {
-      this.ratio = this.adWidth / this.adHeight;
-    }
-  }
+  // initBannerAds() {
+  //   try {
+  //     // 使用Promise回调方式获取OAID
+  //     identifier.getOAID().then((data) => {
+  //       this.adParam.oaid = data;
+  //       hilog.info(0x0000, 'testTag', '%{public}s', `Succeeded in getting adsIdentifierInfo by promise`);
+  //     }).catch((error: BusinessError) => {
+  //       hilog.error(0x0000, 'testTag', '%{public}s',
+  //         `Failed to get adsIdentifierInfo, code: ${error.code}, message: ${error.message}`);
+  //     })
+  //   } catch (error) {
+  //     hilog.error(0x0000, 'testTag', '%{public}s', `Catch err, code: ${error.code}, message: ${error.message}`);
+  //   }
+  //
+  //   if (this.adParam?.adWidth && typeof (this.adParam?.adWidth) === 'number' && this.adParam?.adWidth > 0) {
+  //     this.adWidth = this.adParam?.adWidth;
+  //   }
+  //   if (this.adParam?.adHeight && typeof (this.adParam?.adHeight) === 'number' && this.adParam?.adHeight > 0) {
+  //     this.adHeight = this.adParam?.adHeight;
+  //   }
+  //   if (this.adWidth > 0 && this.adHeight > 0) {
+  //     this.ratio = this.adWidth / this.adHeight;
+  //   }
+  // }
 
   //广告相关的----end
 
+  // 游戏困难模式选择
+  @State txtGameLevel: string = "正常模式";
+  @State @Watch('onGameLevelChanged') gameLevel: number = 0;
+  @State arrowPosition: ArrowPosition = ArrowPosition.END
+  dialogGameLevel: CustomDialogController|null = null;
+  dialogGameOver: CustomDialogController|null = null;
+
+  // 主题选择
+  @State txtGameTheme: string = "数字主题";
+  @State @Watch('onGameThemeChanged') gameTheme: number = 0;
+
+  onGameThemeChanged() {
+    //TODO: 游戏主题选择
+  }
+
+  onGameLevelChanged() {
+    // 当前得分为 0 的话就不用弹窗提示了，直接变更游戏难度
+    if (this.totalScore <= 0) {
+      this.RestartGame();
+      return;
+    }
+
+    let subTitle: string = "正常模式"
+    if (this.gameLevel == 1) {
+      subTitle = "困难模式";
+    } else if (this.gameLevel == 2) {
+      subTitle = "极速模式";
+    }
+    this.dialogGameLevel = this.createAlertDialog("变更游戏模式", "", "将结束本局游戏并自动保存得分记录\n确认以【"+subTitle+"】重新开局？", this.AfterGameLevelChanged, this)
+    this.dialogGameLevel.open();
+  }
+
+  AfterGameLevelChanged(changed: boolean, self: Index=this) {
+    self.dialogGameLevel?.close();
+    if (changed) {
+      self.RestartGame();
+    }
+  }
+
+  onGameOverChanged() {
+    if (this.isGameOver) {
+      // prompt.showToast({
+      //   message: "游戏结束了!"
+      // })
+      let subTitle = "本局得分: 【 "+this.totalScore.toString()+ " 】分！";
+      let content: string = subTitle + "\n你真棒，再来一局吧！"
+      if (this.totalScore > this.displayRecordScore) {
+        content = subTitle + "\n太棒了，创造新纪录了，再来一局吧！"
+      }
+      this.dialogGameOver = this.createAlertDialog("游戏结束", "", content, this.AfterGameOver, this, "退出休息", "再来一局")
+      this.dialogGameOver.open();
+    } else {
+      this.RestartGame();
+    }
+  }
+
+
+  private createAlertDialog(title: string, secondaryTitle:string, content: string, callback: (result: boolean, self: Index)  => void, self: Index=this, pBtnName: string='取消', sBtnName:string='确认') {
+      let dialogControllerConfirm: CustomDialogController = new CustomDialogController({
+      builder: AlertDialog({
+        primaryTitle: title,
+        secondaryTitle: secondaryTitle,
+        content: content,
+        primaryButton: {
+          value: pBtnName,
+          action: () => {
+            callback(false, self);
+          },
+        },
+        secondaryButton: {
+          value: sBtnName,
+          role: ButtonRole.ERROR,
+          action: () => {
+            console.info('Callback when the second button is clicked')
+            callback(true, self);
+          }
+        },
+      }),
+    })
+
+    return dialogControllerConfirm;
+  }
+
+  textTimerController: TextTimerController = new TextTimerController()
+  @State timerStatus: number = 0;
+  @State strTimerStartBtn: string = "开始";
+  @State visibilityState: Visibility = Visibility.Visible;
+
+
   private initNumberItems() {
+    let randomCount: number = 1;
+    if (this.gameLevel == 1) {
+      randomCount = 2;
+    }
     let tempNumbers = buildTwoDimensionalArray(this.initRow, this.initCol);
     let randomPos: number = Math.floor(Math.random() * this.initRow * this.initCol);
+    let otherPos: number = randomPos;
+    if (randomCount > 1) {
+      let diff = Math.floor(Math.random() * this.initRow*this.initCol*0.5);
+      if (randomPos >= diff ) {
+        otherPos = randomPos - diff;
+      }else {
+        otherPos = randomPos + diff;
+      }
+    }
 
     for (let i = 0; i < this.initRow; i++) {
       tempNumbers[i] = [];
       for (let j = 0; j < this.initCol; j++) {
-        if (i * this.initRow + j == randomPos) {
+        if (i * this.initRow + j == randomPos || i * this.initRow + j == otherPos) {
           tempNumbers[i][j] = getRandomNumber();
         } else {
           tempNumbers[i][j] = 0;
@@ -133,73 +232,77 @@ struct Index {
   }
 
 
-
   aboutToAppear(): void {
-    this.initGame();
+    this.RestartGame();
 
     // 获取广告位ID
     // this.initBannerAds();
   }
 
 
-
   aboutToDisappear(): void {
   }
 
   onTotalScoreChanged() {
-    if (this.totalScore > this.recordScore) {
+    let recordScore : number = this.recordScore;
+    if (this.gameLevel == 1) {
+      recordScore = this.recordScoreHard??0;
+    } else if (this.gameLevel == 2) {
+      recordScore = this.recordScoreSpeed??0;
+    }
+    if (this.totalScore > recordScore) {
       if (this.isFirstOverRecord && this.displayRecordScore>0) {
         this.isFirstOverRecord = false;
         prompt.showToast({ message: "创造新纪录了, 加油!" })
       }
-
-      this.recordScore = this.totalScore;
-      this.context.eventHub.emit('UpdateRecordEvent', this.recordScore);
+      if (this.gameLevel == 0) {
+        this.recordScore = this.totalScore;
+      } else if (this.gameLevel == 1) {
+        this.recordScoreHard = this.totalScore;
+      } else if (this.gameLevel == 2) {
+        this.recordScoreSpeed = this.totalScore;
+      }
+      this.context.eventHub.emit('UpdateRecordEvent', recordScore, this.gameLevel);
     }
-    console.log('onTotalScoreChanged record score - ', this.recordScore.toString());
+    console.log('onTotalScoreChanged record score - ', this.recordScore.toString(), 'game level: ', this.gameLevel.toString());
   }
 
-  OnGameOver() {
-    if (this.gameOver) {
-      prompt.showToast({
-        message: "游戏结束了!"
-      })
+  AfterGameOver(restartGame: boolean = true, self: Index=this) {
+    self.dialogGameOver?.close();
+    if (restartGame) {
+      self.RestartGame();
     }
   }
 
   OnRestartGame() {
-    this.initGame();
+    this.RestartGame();
   }
 
-  initGame() {
-    console.log('-------initGame------');
-    this.gameOver = false;
+  RestartGame() {
+    console.log('-------RestartGame------');
     this.totalScore = 0;
+    this.isGameOver = false;
     this.isFirstOverRecord = true;
     this.displayRecordScore = this.recordScore;
+    this.timerStatus = 0;
+    this.strTimerStartBtn = '开始';
+    this.textTimerController.reset();
+    if (this.gameLevel == 1) {
+      this.displayRecordScore = this.recordScoreHard??0;
+    } else if (this.gameLevel == 2) {
+      this.displayRecordScore = this.recordScoreSpeed??0;
+    }
+
     this.initNumberItems();
   }
 
   build() {
     RelativeContainer() {
-
       Column({ space: 5 }) {
-        Row() {
-          Column() {
-            Text('2048')
-              .fontSize(40)
-              .fontWeight(FontWeight.Bold)
-
-              .alignRules({
-                center: { anchor: '__container__', align: VerticalAlign.Center },
-                middle: { anchor: '__container__', align: HorizontalAlign.Center }
-              });
-            Button("重新开始")
-              .fontSize(12)
-              .onClick(() => {
-              this.OnRestartGame();
-            });
-          }.margin({ right: 20 })
+        Row({space: 5}) {
+          Image($r('app.media.startIcon'))
+            .width(60).height(60)
+            .margin({ right: 10})
 
           Column() {
             Text('分数')
@@ -219,7 +322,7 @@ struct Index {
                 middle: { anchor: '__container__', align: HorizontalAlign.Center }
               });
           }
-          .width('25%')
+          .width(120)
           .height(60)
           .backgroundColor(0xbbaea1)
           .borderRadius(5)
@@ -244,18 +347,137 @@ struct Index {
                 middle: { anchor: '__container__', align: HorizontalAlign.Center }
               });
           }
-          .width('25%')
+          .width(120)
           .height(60)
           .backgroundColor(0xbbaea1)
           .borderRadius(5)
           .padding(5)
-        }
-        .margin({ bottom: 30 })
+        }.alignItems(VerticalAlign.Top)
+        // .justifyContent(FlexAlign.SpaceEvenly)
 
-        MainGrid({ totalScore: this.totalScore, gameOver: this.gameOver, numbers: this.numbers, numberItems: this.numberItems, initRow: this.initRow, initCol: this.initCol} );
+        Row() {
+          Text("重新\n开始")
+            .fontSize(12)
+            .backgroundColor(Color.Orange)
+            .padding(5)
+            .width(40)
+            .height(40)
+            .borderRadius(18)
+            .textAlign(TextAlign.Center)
+            .margin({ right: 30, left:10})
+            .onClick(() => {
+              this.OnRestartGame();
+            });
+
+          Column() {
+            Select([{ value: '正常模式' },
+              { value: '困难模式' },
+              { value: '极速模式' }])
+              .width(120)
+              .selected(this.gameLevel)
+              .value(this.txtGameLevel)
+              .font({ size: 16, weight: 300 })
+              .fontColor('#182431')
+              .selectedOptionFont({ size: 14, weight: 200 })
+              .optionFont({ size: 14, weight: 200 })
+              .space(2)
+              .arrowPosition(this.arrowPosition)
+              .menuAlign(MenuAlignType.START, { dx: 0, dy: 0 })
+              .optionWidth(100)
+              .optionHeight(150)
+              // .align(Alignment.Start)
+              .onSelect((index: number, text?: string | undefined) => {
+                console.info('Select:' + index)
+                if (index != this.gameLevel) {
+                  if (text) {
+                    this.txtGameLevel = text;
+                  }
+                  this.gameLevel = index;
+                }
+              })
+          }.margin({right: 20})
+
+          Column() {
+            // Text('游戏主题:')
+            Select([{ value: '数字主题' },
+              { value: '逆向思维' },
+              { value: '进士及第' },
+              { value: '士兵突击' }])
+              .width(120)
+              .selected(this.gameTheme)
+              .value(this.txtGameTheme)
+              .font({ size: 16, weight: 300 })
+              .fontColor('#182431')
+              .selectedOptionFont({ size: 14, weight: 200 })
+              .optionFont({ size: 14, weight: 200 })
+              .space(2)
+              .arrowPosition(this.arrowPosition)
+              .menuAlign(MenuAlignType.START, { dx: 0, dy: 0 })
+              .optionWidth(100)
+              .optionHeight(150)
+              // .align(Alignment.Start)
+              .onSelect((index: number, text?: string | undefined) => {
+                console.info('Select:' + index)
+                if (index != this.gameTheme) {
+                  if (text) {
+                    this.txtGameTheme = text;
+                  }
+                  this.gameTheme = index;
+                }
+              })
+          }
+        }
+        .margin({top: 10, bottom: 10})
+        .justifyContent(FlexAlign.Center)
+
+        Row() {
+          TextTimer({ isCountDown: true, count: 180000, controller: this.textTimerController })
+            .format('mm:ss.SS')
+            .fontColor(Color.Black)
+            .fontSize(18)
+            .onTimer((utc: number, elapsedTime: number) => {
+              // console.info('Timer--:' + elapsedTime)
+              if (elapsedTime >= 18000) {
+                this.isGameOver = true;
+              }
+            })
+
+          Button(this.strTimerStartBtn)
+            .onClick(() => {
+              if (this.timerStatus == 0) {
+                this.timerStatus = 1; // 启动了
+                this.strTimerStartBtn = '暂停';
+                this.textTimerController.start()
+              } else if (this.timerStatus == 1) {
+                this.timerStatus = 2; //暂停了
+                this.strTimerStartBtn = '继续';
+                this.textTimerController.pause()
+              } else if (this.timerStatus == 2) {
+                this.timerStatus = 1; // 继续了
+                this.strTimerStartBtn = '暂停';
+                this.textTimerController.start()
+              }
+            })
+            .width(40)
+            .align(Alignment.Center)
+            // .backgroundColor(0x027bff)
+            .backgroundColor(0xf2b178)
+            // .fontColor(0xffffff)
+            .fontSize(12)
+            .fontWeight(400)
+            .borderRadius(8)
+            .padding(3)
+            .margin({ left: 20 })
+
+        }.visibility(this.gameLevel != 2 ? Visibility.None : Visibility.Visible)
+
+
+        MainGrid({ totalScore: this.totalScore, isGameOver: this.isGameOver, numbers: this.numbers,
+          numberItems: this.numberItems, initRow: this.initRow, initCol: this.initCol,
+          gameLevel: this.gameLevel, timerStatus: this.timerStatus} )
+          .margin({ top: 10, bottom: 10 });
       }
       .width('100%')
-      .margin({ top: 5 })
 
       // 广告
       // if (this.adParam.oaid) {
@@ -271,44 +493,44 @@ struct Index {
 
   }
 
-
-  @Builder
-  buildBannerView() {
-    Row() {
-      AutoAdComponent({
-        adParam: this.adParam,
-        adOptions: this.adOptions,
-        displayOptions: this.displayOptions,
-        interactionListener: {
-          onStatusChanged: (status: string, ad: advertising.Advertisement, data: string) => {
-            hilog.info(0x0000, 'testTag', '%{public}s', `status is ${status}`);
-            switch (status) {
-              case AdStatus.AD_OPEN:
-                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdOpen');
-                break;
-              case AdStatus.AD_CLICKED:
-                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClick');
-                break;
-              case AdStatus.AD_CLOSED:
-                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClose');
-                this.visibilityState = Visibility.None;
-                break;
-              case AdStatus.AD_LOAD:
-                hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdLoad');
-                break;
-              case AdStatus.AD_FAIL:
-                hilog.error(0x0000, 'testTag', '%{public}s', 'Status is onAdFail');
-                this.visibilityState = Visibility.None;
-                break;
-            }
-          }
-        }
-      })
-    }
-    .width('100%')
-    .aspectRatio(this.ratio)
-    .visibility(this.visibilityState)
-  }
+  //
+  // @Builder
+  // buildBannerView() {
+  //   Row() {
+  //     AutoAdComponent({
+  //       adParam: this.adParam,
+  //       adOptions: this.adOptions,
+  //       displayOptions: this.displayOptions,
+  //       interactionListener: {
+  //         onStatusChanged: (status: string, ad: advertising.Advertisement, data: string) => {
+  //           hilog.info(0x0000, 'testTag', '%{public}s', `status is ${status}`);
+  //           switch (status) {
+  //             case AdStatus.AD_OPEN:
+  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdOpen');
+  //               break;
+  //             case AdStatus.AD_CLICKED:
+  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClick');
+  //               break;
+  //             case AdStatus.AD_CLOSED:
+  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClose');
+  //               this.visibilityState = Visibility.None;
+  //               break;
+  //             case AdStatus.AD_LOAD:
+  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdLoad');
+  //               break;
+  //             case AdStatus.AD_FAIL:
+  //               hilog.error(0x0000, 'testTag', '%{public}s', 'Status is onAdFail');
+  //               this.visibilityState = Visibility.None;
+  //               break;
+  //           }
+  //         }
+  //       }
+  //     })
+  //   }
+  //   .width('100%')
+  //   .aspectRatio(this.ratio)
+  //   .visibility(this.visibilityState)
+  // }
 
 }
 
@@ -318,10 +540,13 @@ class NumberItem {
   numColor: number = 0xfdfffe;
   bgColour: number = 0x2d2736;
   numSize: number = 20;
+  themeMode: number = 0;//0-number, 1-daoxu, 2-kaoshi, 3-shibing,
 
   constructor(num: number) {
     this.num = num;
     this.numString = num > 0 ? num.toString() : '';
+
+
     switch (num) {
       case 0: {
         this.numColor = 0x786d63;
@@ -428,11 +653,14 @@ class NumberItem {
 @Component
 struct MainGrid {
   @Link totalScore: number;
-  @Link gameOver: boolean;
+  @Link isGameOver: boolean;
   @Link numberItems: NumberItem[][];
   @Link numbers: number[][];
   @Link initRow: number;
   @Link initCol: number;
+  @Link gameLevel: number; //0-normal, 1-hard, 2-speed
+  @Link timerStatus: number;
+
   screenStartX: number = 0
   screenStartY: number = 0
   lastScreenX: number = 0
@@ -557,11 +785,8 @@ struct MainGrid {
     return { mergedArray, getScore } as MergeResult;
   }
 
-  private addRandomNumber(numbers: number[][], row: number = 4, col: number = 4, randomCount: number = 1) {
-    let emptyPosCount: number = this.calcEmptyPosCount(numbers, row, col);
-    let randomPos: number = Math.floor(Math.random() * emptyPosCount)
+  private addOneRandomNumber(numbers: number[][], randomPos :number, row: number = 4, col: number = 4) {
     let randomNum: number = getRandomNumber();
-
     let emptyStep = 0;
     let doneFlag: boolean = false;
     for (let i = 0; i < row; i++) {
@@ -577,10 +802,35 @@ struct MainGrid {
           }
           emptyStep++;
         }
-
       }
     }
-    // console.info('in addRandomNumber: randomPos=', randomPos, ', randomNum=', randomNum, 'new numbers=', JSON.stringify(numbers));
+    return numbers;
+  }
+
+  private addRandomNumber(numbers: number[][], row: number = 4, col: number = 4, randomCount: number = 1) {
+    let emptyPosCount: number = this.calcEmptyPosCount(numbers, row, col);
+    if (emptyPosCount <= 0) {
+      return numbers;
+    }
+    // 最多增加随机数的次数不能大于空位数
+    if (randomCount > emptyPosCount) {
+      randomCount = emptyPosCount;
+    }
+
+    let index : number = 1;
+    let lastLength: number = 0;
+    while (index <= randomCount) {
+      let currentLength = Math.floor(emptyPosCount*index/randomCount);
+      if(currentLength-lastLength <= 0) {
+        break;
+      }
+      let randomPos: number = Math.floor(Math.random() * (currentLength-lastLength));
+      console.log('---emptyPosCount = ', emptyPosCount, ', random range=', currentLength-lastLength, 'randomPos=', randomPos+lastLength);
+      numbers = this.addOneRandomNumber(numbers, randomPos+lastLength, row, col)
+      lastLength = currentLength;
+      index++;
+    }
+
     return numbers;
   }
 
@@ -596,7 +846,7 @@ struct MainGrid {
     return emptyPosCount;
   }
 
-  private isGameOver(numbers: number[][], row: number = 4, col: number = 4) {
+  private judgeGameIsOver(numbers: number[][], row: number = 4, col: number = 4) {
     let emptyPosCount: number = 0;
     for (const moveTo of ['left', 'right', 'up', 'down']) {
 
@@ -618,14 +868,18 @@ struct MainGrid {
     // console.info('updateNumberItems after merge, numbers=', JSON.stringify(result.mergedArray));
     // 操作(消0+同数合并)之后数组没有任何变化不用增加随机数，也不用更新，此时如果没有空格，这游戏结束
     if (JSON.stringify(this.numbers) == JSON.stringify(result.mergedArray)) {
-      if (this.isGameOver(result.mergedArray, row, col)) {
-        this.gameOver = true;
+      if (this.judgeGameIsOver(result.mergedArray, row, col)) {
+        this.isGameOver = true;
       }
       return;
     }
 
     this.totalScore += result.getScore;
-    let newArrayAfterRandom: number[][] = this.addRandomNumber(result.mergedArray, row, col);
+    let randomCount: number = 1;
+    if (this.gameLevel == 1) {
+      randomCount = 2;
+    }
+    let newArrayAfterRandom: number[][] = this.addRandomNumber(result.mergedArray, row, col, randomCount);
 
     let newNumberItems: NumberItem[][] = [];
     for (let i = 0; i < row; i++) {
@@ -697,6 +951,16 @@ struct MainGrid {
     .gesture(
       SwipeGesture({ direction: SwipeDirection.All })
         .onAction((event: GestureEvent) => {
+          // 判断游戏是否结束或者暂停
+          if (this.isGameOver ) {
+            return;
+          }
+          if(this.gameLevel==2 && this.timerStatus!=1) {
+            prompt.showToast({
+              message: "请先开启倒计时!"
+            })
+            return;
+          }
           const swipeX = this.lastScreenX - this.screenStartX;
           const swipeY = this.lastScreenY - this.screenStartY;
           // 判断滑动方向
@@ -736,8 +1000,6 @@ interface MergeResult {
 }
 
 
-
-
 enum AdStatus {
   AD_LOAD = 'onAdLoad',
   AD_FAIL = 'onAdFail',
@@ -748,4 +1010,5 @@ enum AdStatus {
   AD_VIDEO_START = 'onVideoPlayBegin',
   AD_COMPLETED = 'onVideoPlayEnd'
 }
+
 
