@@ -1,7 +1,6 @@
 import prompt from '@system.prompt';
-// import { advertising, AutoAdComponent, identifier } from '@kit.AdsKit';
-// import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AlertDialog } from '@kit.ArkUI'
+import app from '@system.app'
 
 PersistentStorage.persistProp("persistedData", new Map<string, number>([]));
 let storage = LocalStorage.GetShared()
@@ -43,65 +42,6 @@ struct Index {
   private context = getContext(this) as Context;
 
 
-  //广告相关的----begin
-  // @State adParam: advertising.AdRequestParams = {
-  //   // 广告类型：Banner广告
-  //   adType: 8,
-  //   // 'testw6vs28auh3'为测试专用的广告位ID，App正式发布时需要改为正式的广告位ID
-  //   adId: 'testw6vs28auh3',
-  //   // 广告位宽
-  //   adWidth: 360,
-  //   // 广告位高
-  //   adHeight: 57,
-  //   // 开放匿名设备标识符
-  //   oaid: ''
-  // };
-  // private adOptions: advertising.AdOptions = {
-  //   // 是否允许流量下载0：不允许，1：允许，不设置以广告主设置为准
-  //   allowMobileTraffic: 0,
-  //   // 是否希望根据 COPPA 的规定将您的内容视为面向儿童的内容: -1默认值，不确定 0不希望 1希望
-  //   tagForChildProtection: -1,
-  //   // 是否希望按适合未达到法定承诺年龄的欧洲经济区 (EEA) 用户的方式处理该广告请求： -1默认值，不确定 0不希望 1希望
-  //   tagForUnderAgeOfPromise: -1,
-  //   // 设置广告内容分级上限: W: 3+,所有受众 PI: 7+,家长指导 J:12+,青少年 A: 16+/18+，成人受众
-  //   adContentClassification: 'A'
-  // };
-  // private displayOptions: advertising.AdDisplayOptions = {
-  //   // 广告轮播的时间间隔，单位ms，取值范围[30000, 120000]
-  //   refreshTime: 30000
-  // }
-  // private ratio: number = 1;
-  // private adWidth: number = -1;
-  // private adHeight: number = -1;
-
-
-  // initBannerAds() {
-  //   try {
-  //     // 使用Promise回调方式获取OAID
-  //     identifier.getOAID().then((data) => {
-  //       this.adParam.oaid = data;
-  //       hilog.info(0x0000, 'testTag', '%{public}s', `Succeeded in getting adsIdentifierInfo by promise`);
-  //     }).catch((error: BusinessError) => {
-  //       hilog.error(0x0000, 'testTag', '%{public}s',
-  //         `Failed to get adsIdentifierInfo, code: ${error.code}, message: ${error.message}`);
-  //     })
-  //   } catch (error) {
-  //     hilog.error(0x0000, 'testTag', '%{public}s', `Catch err, code: ${error.code}, message: ${error.message}`);
-  //   }
-  //
-  //   if (this.adParam?.adWidth && typeof (this.adParam?.adWidth) === 'number' && this.adParam?.adWidth > 0) {
-  //     this.adWidth = this.adParam?.adWidth;
-  //   }
-  //   if (this.adParam?.adHeight && typeof (this.adParam?.adHeight) === 'number' && this.adParam?.adHeight > 0) {
-  //     this.adHeight = this.adParam?.adHeight;
-  //   }
-  //   if (this.adWidth > 0 && this.adHeight > 0) {
-  //     this.ratio = this.adWidth / this.adHeight;
-  //   }
-  // }
-
-  //广告相关的----end
-
   // 游戏困难模式选择
   @State txtGameLevel: string = "正常模式";
   @State @Watch('onGameLevelChanged') gameLevel: number = 0;
@@ -110,11 +50,20 @@ struct Index {
   dialogGameOver: CustomDialogController|null = null;
 
   // 主题选择
-  @State txtGameTheme: string = "数字主题";
+  @State txtGameTheme: string = "经典数字";
   @State @Watch('onGameThemeChanged') gameTheme: number = 0;
 
   onGameThemeChanged() {
     //TODO: 游戏主题选择
+    console.log("gameTheme changed =", this.gameTheme);
+    let tempNumbersItems: NumberItem[][] = [];
+    for (let i = 0; i < this.initRow; i++) {
+      tempNumbersItems[i] = [];
+      for (let j = 0; j < this.initCol; j++) {
+        tempNumbersItems[i][j] = new NumberItem(this.numbers[i][j], this.gameTheme);
+      }
+    }
+    this.numberItems = tempNumbersItems;
   }
 
   onGameLevelChanged() {
@@ -124,13 +73,13 @@ struct Index {
       return;
     }
 
-    let subTitle: string = "正常模式"
+    let subTitle: string = "休闲益智"
     if (this.gameLevel == 1) {
-      subTitle = "困难模式";
+      subTitle = "困难重重";
     } else if (this.gameLevel == 2) {
-      subTitle = "极速模式";
+      subTitle = "极速挑战";
     }
-    this.dialogGameLevel = this.createAlertDialog("变更游戏模式", "", "将结束本局游戏并自动保存得分记录\n确认以【"+subTitle+"】重新开局？", this.AfterGameLevelChanged, this)
+    this.dialogGameLevel = this.createAlertDialog("变更游戏模式", "", "将结束本局游戏并自动保存得分记录\n确认以【"+subTitle+"】模式重新开局？", this.AfterGameLevelChanged, this)
     this.dialogGameLevel.open();
   }
 
@@ -223,7 +172,7 @@ struct Index {
     for (let i = 0; i < this.initRow; i++) {
       tempNumbersItems[i] = [];
       for (let j = 0; j < this.initCol; j++) {
-        tempNumbersItems[i][j] = new NumberItem(tempNumbers[i][j]);
+        tempNumbersItems[i][j] = new NumberItem(tempNumbers[i][j], this.gameTheme);
       }
     }
 
@@ -234,9 +183,6 @@ struct Index {
 
   aboutToAppear(): void {
     this.RestartGame();
-
-    // 获取广告位ID
-    // this.initBannerAds();
   }
 
 
@@ -271,6 +217,8 @@ struct Index {
     self.dialogGameOver?.close();
     if (restartGame) {
       self.RestartGame();
+    }else {
+      // app.terminate();
     }
   }
 
@@ -370,9 +318,9 @@ struct Index {
             });
 
           Column() {
-            Select([{ value: '正常模式' },
-              { value: '困难模式' },
-              { value: '极速模式' }])
+            Select([{ value: '休闲益智' },
+              { value: '困难重重' },
+              { value: '极速挑战' }])
               .width(120)
               .selected(this.gameLevel)
               .value(this.txtGameLevel)
@@ -399,10 +347,10 @@ struct Index {
 
           Column() {
             // Text('游戏主题:')
-            Select([{ value: '数字主题' },
-              { value: '逆向思维' },
+            Select([{ value: '经典数字' },
+              { value: '古往今来' },
               { value: '进士及第' },
-              { value: '士兵突击' }])
+              { value: '百炼成钢' }])
               .width(120)
               .selected(this.gameTheme)
               .value(this.txtGameTheme)
@@ -414,7 +362,7 @@ struct Index {
               .arrowPosition(this.arrowPosition)
               .menuAlign(MenuAlignType.START, { dx: 0, dy: 0 })
               .optionWidth(100)
-              .optionHeight(150)
+              .optionHeight(200)
               // .align(Alignment.Start)
               .onSelect((index: number, text?: string | undefined) => {
                 console.info('Select:' + index)
@@ -431,19 +379,26 @@ struct Index {
         .justifyContent(FlexAlign.Center)
 
         Row() {
-          TextTimer({ isCountDown: true, count: 180000, controller: this.textTimerController })
+          TextTimer({ isCountDown: true, count: 18000, controller: this.textTimerController })
             .format('mm:ss.SS')
             .fontColor(Color.Black)
             .fontSize(18)
             .onTimer((utc: number, elapsedTime: number) => {
               // console.info('Timer--:' + elapsedTime)
-              if (elapsedTime >= 18000) {
+              if (elapsedTime >= 1800) {
+                this.strTimerStartBtn = 'X';
                 this.isGameOver = true;
               }
             })
 
           Button(this.strTimerStartBtn)
             .onClick(() => {
+              if (this.isGameOver) {
+                prompt.showToast({
+                  message: "游戏已结束，请重新开始!"
+                })
+                return;
+              }
               if (this.timerStatus == 0) {
                 this.timerStatus = 1; // 启动了
                 this.strTimerStartBtn = '暂停';
@@ -474,17 +429,10 @@ struct Index {
 
         MainGrid({ totalScore: this.totalScore, isGameOver: this.isGameOver, numbers: this.numbers,
           numberItems: this.numberItems, initRow: this.initRow, initCol: this.initCol,
-          gameLevel: this.gameLevel, timerStatus: this.timerStatus} )
+          gameLevel: this.gameLevel, timerStatus: this.timerStatus, gameTheme: this.gameTheme} )
           .margin({ top: 10, bottom: 10 });
       }
       .width('100%')
-
-      // 广告
-      // if (this.adParam.oaid) {
-      //   Stack({ alignContent: Alignment.Bottom }) {
-      //     this.buildBannerView()
-      //   }
-      // }
 
     }
     .height('100%')
@@ -493,46 +441,21 @@ struct Index {
 
   }
 
-  //
-  // @Builder
-  // buildBannerView() {
-  //   Row() {
-  //     AutoAdComponent({
-  //       adParam: this.adParam,
-  //       adOptions: this.adOptions,
-  //       displayOptions: this.displayOptions,
-  //       interactionListener: {
-  //         onStatusChanged: (status: string, ad: advertising.Advertisement, data: string) => {
-  //           hilog.info(0x0000, 'testTag', '%{public}s', `status is ${status}`);
-  //           switch (status) {
-  //             case AdStatus.AD_OPEN:
-  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdOpen');
-  //               break;
-  //             case AdStatus.AD_CLICKED:
-  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClick');
-  //               break;
-  //             case AdStatus.AD_CLOSED:
-  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdClose');
-  //               this.visibilityState = Visibility.None;
-  //               break;
-  //             case AdStatus.AD_LOAD:
-  //               hilog.info(0x0000, 'testTag', '%{public}s', 'Status is onAdLoad');
-  //               break;
-  //             case AdStatus.AD_FAIL:
-  //               hilog.error(0x0000, 'testTag', '%{public}s', 'Status is onAdFail');
-  //               this.visibilityState = Visibility.None;
-  //               break;
-  //           }
-  //         }
-  //       }
-  //     })
-  //   }
-  //   .width('100%')
-  //   .aspectRatio(this.ratio)
-  //   .visibility(this.visibilityState)
-  // }
-
 }
+
+
+let globalNumMapCd: Map<number, string> = new Map<number, string>([[0, ''], [2, '夏'], [4, '商'], [8, '周'], [16, '秦'],
+  [32, '汉'], [64, '三国'], [128, '晋'], [256, '南北'], [512, '隋'], [1024, '唐'], [2048, '五代'],
+  [4096, '宋'], [8192, '元'], [16384, '明'], [32768, '清'], [65536, '中华']]);
+
+// '白丁 童生、秀才、举人、解元、贡士、会员、进士、探花、榜眼、状元、翰林、 中书、 学士、 大学士、 尚书、宰相'
+let globalNumMapJs: Map<number, string> = new Map<number, string>([[0, ''], [2, '白丁'], [4, '童生'], [8, '秀才'], [16, '举人'],
+  [32, '解元'], [64, '贡士'], [128, '会员'], [256, '进士'], [512, '探花'], [1024, '榜眼'], [2048, '状元'],
+  [4096, '翰林'], [8192, '中书'], [16384, '学士'], [32768, '尚书'], [65536, '宰相']]);
+
+let globalNumMapSb: Map<number, string> = new Map<number, string>([[0, ''], [2, '列兵'], [4, '士官'], [8, '少尉'], [16, '中尉'],
+  [32, '上尉'], [64, '少校'], [128, '中校'], [256, '上校'], [512, '大校'], [1024, '少将'], [2048, '中将'],
+  [4096, '上将'], [8192, '大将'], [16384, '元帅'], [32768, '主席']]);
 
 class NumberItem {
   num: number = 0;
@@ -540,12 +463,13 @@ class NumberItem {
   numColor: number = 0xfdfffe;
   bgColour: number = 0x2d2736;
   numSize: number = 20;
-  themeMode: number = 0;//0-number, 1-daoxu, 2-kaoshi, 3-shibing,
+  themeMode: number = 0;//0-number, 1-ChaoDai, 2-JinShi, 3-ShiBing
 
-  constructor(num: number) {
+
+  constructor(num: number, themeMode: number = 0) {
     this.num = num;
+    this.themeMode = themeMode;
     this.numString = num > 0 ? num.toString() : '';
-
 
     switch (num) {
       case 0: {
@@ -646,6 +570,17 @@ class NumberItem {
       }
 
     }
+
+    if (this.themeMode == 1) {
+      this.numString = globalNumMapCd.get(num) ?? num.toString();
+      this.numSize = Math.floor(this.numSize * 0.7);
+    } else if (this.themeMode == 2) {
+      this.numString = globalNumMapJs.get(num) ?? num.toString();
+      this.numSize = Math.floor(this.numSize * 0.7);
+    } else if (this.themeMode == 3) {
+      this.numString = globalNumMapSb.get(num) ?? num.toString();
+      this.numSize = Math.floor(this.numSize * 0.7);
+    }
   }
 }
 
@@ -660,6 +595,7 @@ struct MainGrid {
   @Link initCol: number;
   @Link gameLevel: number; //0-normal, 1-hard, 2-speed
   @Link timerStatus: number;
+  @Link gameTheme: number;
 
   screenStartX: number = 0
   screenStartY: number = 0
@@ -885,7 +821,7 @@ struct MainGrid {
     for (let i = 0; i < row; i++) {
       newNumberItems[i] = [];
       for (let j = 0; j < col; j++) {
-        newNumberItems[i][j] = new NumberItem(newArrayAfterRandom[i][j]);
+        newNumberItems[i][j] = new NumberItem(newArrayAfterRandom[i][j], this.gameTheme);
       }
     }
     this.numbers = newArrayAfterRandom;
@@ -953,6 +889,9 @@ struct MainGrid {
         .onAction((event: GestureEvent) => {
           // 判断游戏是否结束或者暂停
           if (this.isGameOver ) {
+            prompt.showToast({
+              message: "游戏已结束，请点击重新开始!"
+            })
             return;
           }
           if(this.gameLevel==2 && this.timerStatus!=1) {
