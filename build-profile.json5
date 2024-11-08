@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "storePassword": "0000001DD228BA99F1A72B03880D11104943D6D1F7FF734F5F5971167BE72C14AC6F30E5C338FD4D3B1EBCD095",
+          "certpath": "/Users/charles/dev/hmos/AppPublic/myApplicationRelease.cer",
+          "keyAlias": "myApplicationRelease",
+          "keyPassword": "0000001D9686DF39FF5FBD47EC024649C1953D7F4AFD1E4C72ED83729ED3A670E52B994E919DD6FB09A54AF60F",
+          "profile": "/Users/charles/dev/hmos/AppPublic/myApplicationRelease.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/charles/dev/hmos/AppPublic/publicKeystorefile.p12"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",
@@ -28,18 +42,6 @@
     {
       "name": "entry",
       "srcPath": "./entry",
-      "targets": [
-        {
-          "name": "default",
-          "applyToProducts": [
-            "default"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "board",
-      "srcPath": "./features/board",
       "targets": [
         {
           "name": "default",
