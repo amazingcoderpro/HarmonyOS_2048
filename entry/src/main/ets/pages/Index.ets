@@ -1,9 +1,13 @@
 import prompt from '@system.prompt';
 import { AlertDialog } from '@kit.ArkUI'
 import app from '@system.app'
+import { audio } from '@kit.AudioKit';
+import { media } from '@kit.MediaKit';
+import { SoundManger } from './SoundManger'
+
 
 PersistentStorage.persistProp("persistedData", new Map<string, number>([]));
-let storage = LocalStorage.GetShared()
+let storage = LocalStorage.getShared()
 
 
 function getRandomNumber(): number {
@@ -30,7 +34,7 @@ struct Index {
   @State @Watch('onTotalScoreChanged') totalScore: number = 0;
   @State @Watch('onGameOverChanged') isGameOver: boolean = false;
   @State numberItems: NumberItem[][] = [];
-  @State soundOn: number = 1;
+  @State @Watch('onMuteChanged') muteOn: boolean = false;
   @LocalStorageLink('RecordScore') recordScore: number = 0;
   @LocalStorageLink('RecordScoreHard') recordScoreHard: number = 0;
   @LocalStorageLink('RecordScoreSpeed') recordScoreSpeed: number = 0;
@@ -90,11 +94,20 @@ struct Index {
     }
   }
 
+  onMuteChanged() {
+    if(this.muteOn) {
+      this.muteSound();
+    }else {
+      this.unMuteSound()
+    }
+  }
+
   onGameOverChanged() {
     if (this.isGameOver) {
       // prompt.showToast({
       //   message: "游戏结束了!"
       // })
+      this.soundManger.playSound('game_over');
       let subTitle = "本局得分: 【 "+this.totalScore.toString()+ " 】分！";
       let content: string = subTitle + "\n你真棒，再来一局吧！"
       if (this.totalScore > this.displayRecordScore) {
@@ -107,6 +120,28 @@ struct Index {
     }
   }
 
+  private lastExitTime: number = -1;
+  onBackPress() {
+    if (-1 == this.lastExitTime) {                 // 第一次点击返回键，提示toast
+      this.lastExitTime = new Date().getTime();
+      prompt.showToast({
+        message: "再按一次退出应用"
+      })
+      return true;
+    } else {
+      let currentTime = new Date().getTime();
+      if(currentTime - this.lastExitTime > 2000) { // 时间大于2000提示
+        prompt.showToast({
+          message: "再按一次退出应用"
+        })
+        this.lastExitTime = currentTime;
+        return true;
+      } else {
+        app.terminate();                           // 2秒内点击，退出APP
+      }
+    }
+    return false;
+  }
 
   private createAlertDialog(title: string, secondaryTitle:string, content: string, callback: (result: boolean, self: Index)  => void, self: Index=this, pBtnName: string='取消', sBtnName:string='确认') {
       let dialogControllerConfirm: CustomDialogController = new CustomDialogController({
@@ -137,8 +172,9 @@ struct Index {
   textTimerController: TextTimerController = new TextTimerController()
   @State timerStatus: number = 0;
   @State strTimerStartBtn: string = "开始";
-  @State visibilityState: Visibility = Visibility.Visible;
 
+
+  @State soundManger:SoundManger = new SoundManger();
 
   private initNumberItems() {
     let randomCount: number = 1;
@@ -180,14 +216,97 @@ struct Index {
     this.numberItems = tempNumbersItems;
   }
 
+  muteSound() {
+    this.soundManger.stopSoundAll()
+    this.soundManger.isMute = true;
+  }
+
+  unMuteSound() {
+    this.soundManger.isMute = false;
+    if(!this.isGameOver && this.gameLevel==2 && this.timerStatus==1 ) {
+      this.playBgSound();
+    }
+  }
+
+  @State change : boolean = false
+
+  //定义一个Builder
+  @Builder muteIcon(icon : Resource) { //这里需要改变的是icon，因此这里传参为icon
+    Image(icon)
+      .width(25)
+      .height(25)
+      .margin({ right: 20 })
+      .objectFit(ImageFit.Contain) //设置icon的布局样式
+      .onClick(() => {
+        this.muteOn = !this.muteOn;
+      })
+  }
+
+  //定义一个Builder
+  @Builder pauseIcon(icon : Resource) { //这里需要改变的是icon，因此这里传参为icon
+    Image(icon)
+      .width(25)
+      .height(25)
+      .margin({ left: 20 })
+      .objectFit(ImageFit.Contain) //设置icon的布局样式
+      .onClick(() => {
+        if (this.isGameOver) {
+          this.soundManger.playSound('error');
+          prompt.showToast({
+            message: "游戏已结束，请重新开始!"
+          })
+          return;
+        }
+        if (this.timerStatus == 0) {
+          this.playBgSound();
+          this.timerStatus = 1; // 启动了
+          this.strTimerStartBtn = '暂停';
+          this.textTimerController.start()
+        } else if (this.timerStatus == 1) {
+          this.soundManger.stopSound('timer_bg');
+          this.timerStatus = 2; //暂停了
+          this.strTimerStartBtn = '继续';
+          this.textTimerController.pause()
+        } else if (this.timerStatus == 2) {
+          this.playBgSound();
+          this.timerStatus = 1; // 继续了
+          this.strTimerStartBtn = '暂停';
+          this.textTimerController.start()
+        }
+      })
+  }
+
+  soundMangerInit() {
+    this.soundManger.createSoundPool();
+    this.soundManger.loadAudios(['merge', 'no_change', 'restart', 'timer_bg', 'game_over', 'error'])
+    // this.soundManger.loadAudio('merge');
+    // this.soundManger.loadAudio('no_change');
+    // this.soundManger.loadAudio('restart');
+    // this.soundManger.loadAudio('timer_bg');
+    // this.soundManger.loadAudio('game_over');
+    // this.soundManger.loadAudio('error');
+  }
 
   aboutToAppear(): void {
     this.RestartGame();
+    this.soundMangerInit();
   }
 
 
   aboutToDisappear(): void {
   }
+
+  playBgSound() {
+    let bgPlayParameters: media.PlayParameters = {
+      loop: -1, // 循环播放
+      rate: audio.AudioRendererRate.RENDER_RATE_NORMAL, // 正常倍速
+      leftVolume: 0.2, // range = 0.0-1.0
+      rightVolume: 0.2, // range = 0.0-1.0
+      priority: 0, // 最低优先级
+    }
+    this.soundManger.playSound('timer_bg', bgPlayParameters);
+  }
+
 
   onTotalScoreChanged() {
     let recordScore : number = this.recordScore;
@@ -200,6 +319,7 @@ struct Index {
       if (this.isFirstOverRecord && this.displayRecordScore>0) {
         this.isFirstOverRecord = false;
         prompt.showToast({ message: "创造新纪录了, 加油!" })
+        // this.soundManger.playSound('game_over');
       }
       if (this.gameLevel == 0) {
         this.recordScore = this.totalScore;
@@ -216,9 +336,11 @@ struct Index {
   AfterGameOver(restartGame: boolean = true, self: Index=this) {
     self.dialogGameOver?.close();
     if (restartGame) {
+      self.soundManger.playSound('restart');
       self.RestartGame();
-    }else {
-      // app.terminate();
+    } else {
+      console.log('------AfterGameOver EXIT------');
+      app.terminate();
     }
   }
 
@@ -304,18 +426,41 @@ struct Index {
         // .justifyContent(FlexAlign.SpaceEvenly)
 
         Row() {
-          Text("重新\n开始")
-            .fontSize(12)
-            .backgroundColor(Color.Orange)
-            .padding(5)
-            .width(40)
-            .height(40)
-            .borderRadius(18)
-            .textAlign(TextAlign.Center)
-            .margin({ right: 30, left:10})
+          // Text("重新\n开始")
+          //   .fontSize(12)
+          //   .backgroundColor(Color.Orange)
+          //   .padding(5)
+          //   .width(40)
+          //   .height(40)
+          //   .borderRadius(18)
+          //   .textAlign(TextAlign.Center)
+          //   .margin({ right: 30, left:10})
+          //   .onClick(() => {
+          //     this.soundManger.stopSound('timer_bg');
+          //     this.soundManger.playSound('restart');
+          //     this.OnRestartGame();
+          //   });
+
+          Image($r('app.media.restart'))
+            .width(25).height(25)
+            .margin({ right: 10})
             .onClick(() => {
+              this.soundManger.stopSound('timer_bg');
+              this.soundManger.playSound('restart');
               this.OnRestartGame();
             });
+          if (this.muteOn) {
+            this.muteIcon($r('app.media.mute'));
+          } else {
+            this.muteIcon($r('app.media.unmute'))
+          }
+          // Image($r('app.media.unmute'))
+          //   .width(25).height(25)
+          //   .margin({ right: 20})
+          //   .onClick(() => {
+          //     this.muteOn = !this.muteOn;
+          //   });
+
 
           Column() {
             Select([{ value: '休闲益智' },
@@ -386,50 +531,60 @@ struct Index {
             .onTimer((utc: number, elapsedTime: number) => {
               // console.info('Timer--:' + elapsedTime)
               if (elapsedTime >= 1800) {
+                this.soundManger.stopSound('timer_bg');
                 this.strTimerStartBtn = 'X';
                 this.isGameOver = true;
               }
             })
 
-          Button(this.strTimerStartBtn)
-            .onClick(() => {
-              if (this.isGameOver) {
-                prompt.showToast({
-                  message: "游戏已结束，请重新开始!"
-                })
-                return;
-              }
-              if (this.timerStatus == 0) {
-                this.timerStatus = 1; // 启动了
-                this.strTimerStartBtn = '暂停';
-                this.textTimerController.start()
-              } else if (this.timerStatus == 1) {
-                this.timerStatus = 2; //暂停了
-                this.strTimerStartBtn = '继续';
-                this.textTimerController.pause()
-              } else if (this.timerStatus == 2) {
-                this.timerStatus = 1; // 继续了
-                this.strTimerStartBtn = '暂停';
-                this.textTimerController.start()
-              }
-            })
-            .width(40)
-            .align(Alignment.Center)
-            // .backgroundColor(0x027bff)
-            .backgroundColor(0xf2b178)
-            // .fontColor(0xffffff)
-            .fontSize(12)
-            .fontWeight(400)
-            .borderRadius(8)
-            .padding(3)
-            .margin({ left: 20 })
+          if (this.timerStatus == 0 || this.timerStatus == 2) {
+            this.pauseIcon($r('app.media.play'));
+          } else {
+            this.pauseIcon($r('app.media.pause'));
+          }
+          // Button(this.strTimerStartBtn)
+          //   .onClick(() => {
+          //     if (this.isGameOver) {
+          //       this.soundManger.playSound('error');
+          //       prompt.showToast({
+          //         message: "游戏已结束，请重新开始!"
+          //       })
+          //       return;
+          //     }
+          //     if (this.timerStatus == 0) {
+          //       this.playBgSound();
+          //       this.timerStatus = 1; // 启动了
+          //       this.strTimerStartBtn = '暂停';
+          //       this.textTimerController.start()
+          //     } else if (this.timerStatus == 1) {
+          //       this.soundManger.stopSound('timer_bg');
+          //       this.timerStatus = 2; //暂停了
+          //       this.strTimerStartBtn = '继续';
+          //       this.textTimerController.pause()
+          //     } else if (this.timerStatus == 2) {
+          //       this.playBgSound();
+          //       this.timerStatus = 1; // 继续了
+          //       this.strTimerStartBtn = '暂停';
+          //       this.textTimerController.start()
+          //     }
+          //   })
+          //   .width(40)
+          //   .align(Alignment.Center)
+          //   // .backgroundColor(0x027bff)
+          //   .backgroundColor(0xf2b178)
+          //   // .fontColor(0xffffff)
+          //   .fontSize(12)
+          //   .fontWeight(400)
+          //   .borderRadius(8)
+          //   .padding(3)
+          //   .margin({ left: 20 })
 
         }.visibility(this.gameLevel != 2 ? Visibility.None : Visibility.Visible)
 
 
         MainGrid({ totalScore: this.totalScore, isGameOver: this.isGameOver, numbers: this.numbers,
           numberItems: this.numberItems, initRow: this.initRow, initCol: this.initCol,
-          gameLevel: this.gameLevel, timerStatus: this.timerStatus, gameTheme: this.gameTheme} )
+          gameLevel: this.gameLevel, timerStatus: this.timerStatus, gameTheme: this.gameTheme, soundManger: this.soundManger} )
           .margin({ top: 10, bottom: 10 });
       }
       .width('100%')
@@ -596,11 +751,23 @@ struct MainGrid {
   @Link gameLevel: number; //0-normal, 1-hard, 2-speed
   @Link timerStatus: number;
   @Link gameTheme: number;
+  @Link soundManger: SoundManger;
 
   screenStartX: number = 0
   screenStartY: number = 0
   lastScreenX: number = 0
   lastScreenY: number = 0
+
+  playMergeSound() {
+    let mergePlayParameters: media.PlayParameters = {
+      loop: 0, // 不循环播放
+      rate: audio.AudioRendererRate.RENDER_RATE_NORMAL, // 正常倍速
+      leftVolume: 1, // range = 0.0-1.0
+      rightVolume: 1, // range = 0.0-1.0
+      priority: 1, // 最低优先级
+    }
+    this.soundManger.playSound('merge');
+  }
 
   private eraseZeroOf2DArray(numbers: number[][], moveTo: string, row: number = 4, col: number = 4): number[][] {
     let newArray = buildTwoDimensionalArray(row, col);
@@ -800,6 +967,9 @@ struct MainGrid {
     let newArrayAfterEraseZero: number[][] = this.eraseZeroOf2DArray(this.numbers, moveTo, row, col);
     // console.info('updateNumberItems after erase zero, numbers=', JSON.stringify(newArrayAfterEraseZero));
     let result = this.merge2DArray(newArrayAfterEraseZero, moveTo, row, col);
+    if (result.getScore > 0) {
+      this.playMergeSound();
+    }
 
     // console.info('updateNumberItems after merge, numbers=', JSON.stringify(result.mergedArray));
     // 操作(消0+同数合并)之后数组没有任何变化不用增加随机数，也不用更新，此时如果没有空格，这游戏结束
@@ -807,6 +977,7 @@ struct MainGrid {
       if (this.judgeGameIsOver(result.mergedArray, row, col)) {
         this.isGameOver = true;
       }
+      this.soundManger.playSound('no_change');
       return;
     }
 
@@ -874,14 +1045,14 @@ struct MainGrid {
     .borderRadius(5)
     .onTouch((e) => {
       if (e.type === TouchType.Down && e.touches.length > 0) { // 触摸开始，记录初始位置
-        this.screenStartX = e.touches[0].screenX;
-        this.screenStartY = e.touches[0].screenY;
+        this.screenStartX = e.touches[0].windowX;
+        this.screenStartY = e.touches[0].windowY;
       } else if (e.type === TouchType.Up && e.changedTouches.length > 0) { // 当手指抬起时，更新最后的位置
-        this.lastScreenX = e.changedTouches[0].screenX;
-        this.lastScreenY = e.changedTouches[0].screenY;
+        this.lastScreenX = e.changedTouches[0].windowX;
+        this.lastScreenY = e.changedTouches[0].windowY;
       } else if (e.type === TouchType.Move && e.changedTouches.length > 0) { // 当手指移动时，更新最后的位置
-        this.lastScreenX = e.changedTouches[0].screenX;
-        this.lastScreenY = e.changedTouches[0].screenY;
+        this.lastScreenX = e.changedTouches[0].windowX;
+        this.lastScreenY = e.changedTouches[0].windowY;
       }
     })
     .gesture(
@@ -889,12 +1060,14 @@ struct MainGrid {
         .onAction((event: GestureEvent) => {
           // 判断游戏是否结束或者暂停
           if (this.isGameOver ) {
+            this.soundManger.playSound('error');
             prompt.showToast({
               message: "游戏已结束，请点击重新开始!"
             })
             return;
           }
           if(this.gameLevel==2 && this.timerStatus!=1) {
+            this.soundManger.playSound('error');
             prompt.showToast({
               message: "请先开启倒计时!"
             })
@@ -939,15 +1112,15 @@ interface MergeResult {
 }
 
 
-enum AdStatus {
-  AD_LOAD = 'onAdLoad',
-  AD_FAIL = 'onAdFail',
-  AD_OPEN = 'onAdOpen',
-  AD_CLICKED = 'onAdClick',
-  AD_CLOSED = 'onAdClose',
-  AD_REWARDED = 'onAdReward',
-  AD_VIDEO_START = 'onVideoPlayBegin',
-  AD_COMPLETED = 'onVideoPlayEnd'
-}
+// enum AdStatus {
+//   AD_LOAD = 'onAdLoad',
+//   AD_FAIL = 'onAdFail',
+//   AD_OPEN = 'onAdOpen',
+//   AD_CLICKED = 'onAdClick',
+//   AD_CLOSED = 'onAdClose',
+//   AD_REWARDED = 'onAdReward',
+//   AD_VIDEO_START = 'onVideoPlayBegin',
+//   AD_COMPLETED = 'onVideoPlayEnd'
+// }
 
 
