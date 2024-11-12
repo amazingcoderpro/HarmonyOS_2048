@@ -36,8 +36,8 @@
 - 增加编译构建配置、开启代码混淆
 
 ## Release History
-- [v1.0.0](./Release/2048_v1.0.0.app)
-- 
+- 20241112-first release[v1.0.0](./Release/2048_v1.0.0.app)
+
 ## 细节介绍
 ### 首页
 ![](./Release/default_page.png)
