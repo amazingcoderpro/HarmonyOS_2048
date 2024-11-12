@@ -524,13 +524,13 @@ struct Index {
         .justifyContent(FlexAlign.Center)
 
         Row() {
-          TextTimer({ isCountDown: true, count: 18000, controller: this.textTimerController })
+          TextTimer({ isCountDown: true, count: 180000, controller: this.textTimerController })
             .format('mm:ss.SS')
             .fontColor(Color.Black)
             .fontSize(18)
             .onTimer((utc: number, elapsedTime: number) => {
               // console.info('Timer--:' + elapsedTime)
-              if (elapsedTime >= 1800) {
+              if (elapsedTime >= 18000) {
                 this.soundManger.stopSound('timer_bg');
                 this.strTimerStartBtn = 'X';
                 this.isGameOver = true;
